@@ -1,7 +1,7 @@
 import { EditorState } from '@codemirror/state';
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection } from '@codemirror/view';
 import { defaultKeymap, history, historyKeymap, indentWithTab } from '@codemirror/commands';
-import { search, searchKeymap, openSearchPanel } from '@codemirror/search';
+import { search, searchKeymap, openSearchPanel, closeSearchPanel, findNext, findPrevious, replaceNext, replaceAll, selectMatches, SearchQuery, setSearchQuery } from '@codemirror/search';
 import { markdown, markdownLanguage } from '@codemirror/lang-markdown';
 import { syntaxHighlighting, HighlightStyle, indentOnInput } from '@codemirror/language';
 import { tags } from '@lezer/highlight';
@@ -97,6 +97,98 @@ function insertCodeBlock(view) {
     selection: { anchor: from + 4, head: from + 4 + (sel || '').length },
   });
   view.focus();
+}
+
+// ── VSCode-style search panel ──────────────────────────────────────────────
+
+function createVSCodeSearchPanel(view) {
+  let caseSensitive = false, wholeWord = false, regexp = false;
+
+  const dom = document.createElement('div');
+  dom.className = 'vsc-search-panel';
+  dom.innerHTML = `
+    <div class="vsc-row">
+      <div class="vsc-input-wrap">
+        <input class="vsc-input" placeholder="Find" autocomplete="off" spellcheck="false">
+        <div class="vsc-input-opts">
+          <button class="vsc-opt" data-opt="case" title="Match Case (Alt+C)">Aa</button>
+          <button class="vsc-opt" data-opt="word" title="Whole Word (Alt+W)"><u>ab</u></button>
+          <button class="vsc-opt" data-opt="regexp" title="Use Regex (Alt+R)" style="font-family:monospace">.*</button>
+        </div>
+      </div>
+      <div class="vsc-actions">
+        <button class="vsc-action" data-action="prev" title="Previous Match (Shift+Enter)">↑</button>
+        <button class="vsc-action" data-action="next" title="Next Match (Enter)">↓</button>
+        <button class="vsc-action" data-action="all"  title="Select All Matches">⊡</button>
+        <div class="vsc-sep"></div>
+        <button class="vsc-action vsc-close" data-action="close" title="Close (Escape)">✕</button>
+      </div>
+    </div>
+    <div class="vsc-row">
+      <div class="vsc-input-wrap">
+        <input class="vsc-input" placeholder="Replace" autocomplete="off" spellcheck="false">
+      </div>
+      <div class="vsc-actions">
+        <button class="vsc-action" data-action="replace"    title="Replace (Enter)">Replace</button>
+        <button class="vsc-action" data-action="replaceAll" title="Replace All">Replace All</button>
+      </div>
+    </div>
+  `;
+
+  const [findInput, replaceInput] = dom.querySelectorAll('.vsc-input');
+
+  function commit() {
+    try {
+      view.dispatch({ effects: setSearchQuery.of(new SearchQuery({
+        search: findInput.value,
+        replace: replaceInput.value,
+        caseSensitive, regexp, wholeWord,
+      })) });
+    } catch(_) {}
+  }
+
+  findInput.addEventListener('input', commit);
+  replaceInput.addEventListener('input', commit);
+
+  findInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { commit(); e.shiftKey ? findPrevious(view) : findNext(view); e.preventDefault(); }
+    if (e.key === 'Escape') closeSearchPanel(view);
+  });
+  replaceInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') { commit(); replaceNext(view); e.preventDefault(); }
+    if (e.key === 'Escape') closeSearchPanel(view);
+  });
+
+  dom.querySelectorAll('.vsc-opt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const o = btn.dataset.opt;
+      if (o === 'case') caseSensitive = !caseSensitive;
+      if (o === 'word') wholeWord = !wholeWord;
+      if (o === 'regexp') regexp = !regexp;
+      btn.classList.toggle('vsc-opt-on');
+      commit();
+    });
+  });
+
+  dom.querySelectorAll('.vsc-action').forEach(btn => {
+    btn.addEventListener('click', () => {
+      commit();
+      const a = btn.dataset.action;
+      if (a === 'next')       findNext(view);
+      if (a === 'prev')       findPrevious(view);
+      if (a === 'all')        selectMatches(view);
+      if (a === 'replace')    replaceNext(view);
+      if (a === 'replaceAll') replaceAll(view);
+      if (a === 'close')      closeSearchPanel(view);
+      if (a !== 'close') view.focus();
+    });
+  });
+
+  return {
+    dom,
+    mount() { findInput.focus(); },
+    update() {},
+  };
 }
 
 // ── createMarkdownEditor ───────────────────────────────────────────────────
@@ -203,7 +295,7 @@ export function createMarkdownEditor(container, initialDoc, { onChange, height =
         drawSelection(),
         history(),
         indentOnInput(),
-        search({ top: false }),
+        search({ top: false, createPanel: createVSCodeSearchPanel }),
         syntaxHighlighting(markdownHighlight, { fallback: true }),
         markdown({ base: markdownLanguage }),
         keymap.of([...defaultKeymap, ...historyKeymap, ...searchKeymap, indentWithTab]),
