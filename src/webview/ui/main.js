@@ -1,6 +1,6 @@
 const vscode = acquireVsCodeApi();
 
-let state = { project: null, global: null };
+let state = { project: null, global: null, isProjectInitialized: false };
 let currentScope = 'project';
 let currentSection = 'dashboard';
 
@@ -46,9 +46,11 @@ window.addEventListener('message', event => {
     state = msg.state;
     currentScope = msg.scope ?? 'project';
     document.querySelectorAll('.scope-tab').forEach(b => b.classList.toggle('active', b.dataset.scope === currentScope));
+    updateInitNav();
     activateSection(msg.section ?? 'dashboard');
   } else if (msg.type === 'stateUpdate') {
     state = msg.state;
+    updateInitNav();
     render();
   }
 });
@@ -61,6 +63,7 @@ function getConfig() {
 function render() {
   if (!state.project) return;
   renderDashboard();
+  renderInit();
   renderModel();
   renderEnv();
   renderAdvanced();
@@ -109,6 +112,21 @@ function renderDashboard() {
       { label: 'Skills', value: proj?.skills?.length ?? 0, icon: '🛠', section: 'skills' },
       { label: 'Workflows', value: proj?.workflows?.length ?? 0, icon: '🔄', section: 'workflows' },
     );
+  }
+
+  // not-initialized banner
+  let banner = document.getElementById('dash-not-init');
+  if (!state.isProjectInitialized) {
+    if (!banner) {
+      banner = document.createElement('div');
+      banner.id = 'dash-not-init';
+      banner.className = 'not-init-bar';
+      banner.innerHTML = `<span>⚠️ This project has no Claude Code configuration.</span><button id="dash-init-btn">Initialize</button>`;
+      banner.querySelector('#dash-init-btn').addEventListener('click', () => activateSection('init'));
+      grid.parentElement.insertBefore(banner, grid);
+    }
+  } else {
+    banner?.remove();
   }
 
   grid.innerHTML = cards.map(c => `
@@ -523,6 +541,49 @@ function renderFileSection(type) {
 document.querySelectorAll('.add-file-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     vscode.postMessage({ type: 'newFile', sectionType: btn.dataset.type, scope: currentScope });
+  });
+});
+
+// --- Init ---
+function updateInitNav() {
+  const navInit = document.getElementById('nav-init');
+  if (!navInit) return;
+  if (!state.isProjectInitialized) {
+    navInit.style.color = 'var(--vscode-notificationsWarningIcon-foreground, orange)';
+    navInit.title = 'Project not initialized';
+  } else {
+    navInit.style.color = '';
+    navInit.title = '';
+  }
+}
+
+function renderInit() {
+  const initialized = state.isProjectInitialized;
+  document.getElementById('init-already').style.display = initialized ? 'flex' : 'none';
+
+  // pre-fill CLAUDE.md template only if empty
+  const editor = document.getElementById('init-claudemd');
+  if (!editor.value) {
+    const projectName = (state.project?.claudeMd ? '' : '');
+    editor.value = `# Project\n\n## Overview\nDescribe your project here.\n\n## Development\n- Add key commands and workflows here.\n\n## Guidelines\n- Add project-specific coding standards here.\n`;
+  }
+}
+
+document.getElementById('init-run').addEventListener('click', () => {
+  const dirs = [];
+  if (document.getElementById('init-dir-rules').checked) dirs.push('rules');
+  if (document.getElementById('init-dir-commands').checked) dirs.push('commands');
+  if (document.getElementById('init-dir-skills').checked) dirs.push('skills');
+  if (document.getElementById('init-dir-workflows').checked) dirs.push('workflows');
+
+  vscode.postMessage({
+    type: 'initProject',
+    options: {
+      model: document.getElementById('init-model').value,
+      claudeMd: document.getElementById('init-claudemd').value,
+      claudeIgnore: document.getElementById('init-claudeignore').checked,
+      dirs,
+    },
   });
 });
 

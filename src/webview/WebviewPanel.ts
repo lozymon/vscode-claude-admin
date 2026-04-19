@@ -56,11 +56,17 @@ export class WebviewPanel {
     return {
       project: this.config.projectConfig,
       global: this.config.globalConfig,
+      isProjectInitialized: this.config.isProjectInitialized,
     };
   }
 
   private handleMessage(msg: any) {
     switch (msg.type) {
+      case 'initProject':
+        this.config.initProject(msg.options).then(() => {
+          this.panel.webview.postMessage({ type: 'init', state: this.buildState(), section: 'dashboard', scope: 'project' });
+        });
+        break;
       case 'saveModel':
         this.saveSettings(msg.scope, { model: msg.model, smallModel: msg.smallModel || undefined });
         break;

@@ -246,6 +246,43 @@ export class ConfigManager {
     this._onDidChange.fire();
   }
 
+  get isProjectInitialized(): boolean {
+    const p = projectPaths();
+    return !!p && fs.existsSync(path.dirname(p.settingsJson));
+  }
+
+  async initProject(options: {
+    model: string;
+    claudeMd: string;
+    claudeIgnore: boolean;
+    dirs: string[];
+  }) {
+    const p = projectPaths();
+    if (!p) return;
+
+    const claudeDir = path.dirname(p.settingsJson);
+    fs.mkdirSync(claudeDir, { recursive: true });
+
+    this.writeJson(p.settingsJson, {
+      model: options.model,
+      permissions: { allow: [], deny: [] },
+    });
+
+    fs.writeFileSync(p.claudeMd, options.claudeMd, 'utf8');
+
+    if (options.claudeIgnore) {
+      fs.writeFileSync(p.claudeIgnore, 'node_modules/\ndist/\n.env\n', 'utf8');
+    }
+
+    for (const dir of options.dirs) {
+      const dirPath = (p as any)[dir];
+      if (dirPath) fs.mkdirSync(dirPath, { recursive: true });
+    }
+
+    this.reload();
+    this._onDidChange.fire();
+  }
+
   async deleteMarkdownFile(filePath: string) {
     fs.rmSync(filePath);
     this.reload();

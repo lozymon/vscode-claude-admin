@@ -380,6 +380,33 @@
     /* ── Divider ── */
     .divider { height: 1px; background: var(--border); margin: 16px 0; }
 
+    /* ── Init banner ── */
+    .init-banner {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      background: var(--item-hover);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px 14px;
+      margin-bottom: 16px;
+    }
+    .init-banner-icon { font-size: 18px; flex-shrink: 0; }
+    .not-init-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--vscode-inputValidation-warningBackground, rgba(255,200,0,0.1));
+      border: 1px solid var(--vscode-inputValidation-warningBorder, rgba(255,200,0,0.4));
+      border-radius: 4px;
+      padding: 10px 14px;
+      margin-bottom: 16px;
+      font-size: 12px;
+    }
+    .not-init-bar button { flex-shrink: 0; }
+    .checkbox-label { display:flex; align-items:center; gap:8px; font-size:12px; cursor:pointer; }
+    .checkbox-label input { width:auto; }
+
     /* ── Dashboard cards ── */
     .dash-card {
       background: var(--card-bg);
@@ -407,6 +434,49 @@
       <!-- Dashboard -->
       <section id="sec-dashboard" class="active">
         <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:20px" id="dash-grid"></div>
+      </section>
+
+      <!-- Initialize -->
+      <section id="sec-init">
+        <div class="card">
+          <div class="card-header">Initialize Claude Code</div>
+          <div class="card-body">
+            <div class="init-banner" id="init-already" style="display:none">
+              <span class="init-banner-icon">✅</span>
+              <div>
+                <strong>Already initialized</strong>
+                <div style="opacity:0.6;font-size:12px;margin-top:2px">Running this will add any missing files without overwriting existing ones.</div>
+              </div>
+            </div>
+            <div class="field">
+              <label>Model</label>
+              <select id="init-model">
+                <option value="claude-sonnet-4-6">claude-sonnet-4-6 — Sonnet 4.6</option>
+                <option value="claude-opus-4-7">claude-opus-4-7 — Opus 4.7</option>
+                <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 — Haiku 4.5</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>CLAUDE.md Content</label>
+              <textarea id="init-claudemd" style="min-height:180px"></textarea>
+            </div>
+            <div class="field">
+              <label style="margin-bottom:8px">Create Directories</label>
+              <div style="display:flex;flex-direction:column;gap:6px">
+                <label class="checkbox-label"><input type="checkbox" id="init-dir-rules" checked> <code>rules/</code> — coding standards</label>
+                <label class="checkbox-label"><input type="checkbox" id="init-dir-commands" checked> <code>commands/</code> — slash commands</label>
+                <label class="checkbox-label"><input type="checkbox" id="init-dir-skills" checked> <code>skills/</code> — reusable skills</label>
+                <label class="checkbox-label"><input type="checkbox" id="init-dir-workflows"> <code>workflows/</code> — multi-step workflows</label>
+              </div>
+            </div>
+            <div class="field">
+              <label class="checkbox-label"><input type="checkbox" id="init-claudeignore" checked> Create <code>.claudeignore</code></label>
+            </div>
+            <div class="save-bar">
+              <button id="init-run">Initialize Project</button>
+            </div>
+          </div>
+        </div>
       </section>
 
       <!-- Model -->
@@ -680,6 +750,9 @@
     <nav class="nav">
       <button class="nav-btn active" data-section="dashboard">
         <span class="nav-icon">🏠</span> Dashboard
+      </button>
+      <button class="nav-btn project-only" data-section="init" id="nav-init">
+        <span class="nav-icon">🚀</span> Initialize
       </button>
       <div class="nav-group-label">Settings</div>
       <button class="nav-btn" data-section="model">
