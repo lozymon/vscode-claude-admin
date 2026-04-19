@@ -182,10 +182,10 @@ export class WebviewPanel {
     const uiDir = path.join(this.context.extensionPath, 'src', 'webview', 'ui');
     const htmlPath = path.join(uiDir, 'index.html');
     if (!fs.existsSync(htmlPath)) return '<html><body>UI not found.</body></html>';
-    const scriptUri = this.panel.webview.asWebviewUri(
-      vscode.Uri.file(path.join(uiDir, 'main.js'))
-    );
-    return fs.readFileSync(htmlPath, 'utf8').replace('<script src="main.js"></script>', `<script src="${scriptUri}"></script>`);
+    const scriptUri = this.panel.webview.asWebviewUri(vscode.Uri.file(path.join(uiDir, 'main.js')));
+    const cmUri = this.panel.webview.asWebviewUri(vscode.Uri.file(path.join(uiDir, 'cm-bundle.js')));
+    return fs.readFileSync(htmlPath, 'utf8')
+      .replace('<script src="main.js"></script>', `<script src="${cmUri}"></script><script src="${scriptUri}"></script>`);
   }
 
   private dispose() {

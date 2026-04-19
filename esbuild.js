@@ -2,26 +2,41 @@ const esbuild = require('esbuild');
 const isProduction = process.argv.includes('--production');
 const isWatch = process.argv.includes('--watch');
 
-const ctx = esbuild.context({
-  entryPoints: ['src/extension.ts'],
+const sharedOpts = {
   bundle: true,
-  outfile: 'dist/extension.js',
-  external: ['vscode'],
-  format: 'cjs',
-  platform: 'node',
   sourcemap: !isProduction,
   minify: isProduction,
-});
+};
 
-ctx
-  .then(async (c) => {
-    if (isWatch) {
-      await c.watch();
-      console.log('Watching...');
-    } else {
-      await c.rebuild();
-      await c.dispose();
-      console.log('Build complete.');
-    }
-  })
-  .catch(() => process.exit(1));
+async function build() {
+  const ext = await esbuild.context({
+    ...sharedOpts,
+    entryPoints: ['src/extension.ts'],
+    outfile: 'dist/extension.js',
+    external: ['vscode'],
+    format: 'cjs',
+    platform: 'node',
+  });
+
+  const cm = await esbuild.context({
+    ...sharedOpts,
+    entryPoints: ['src/webview/ui/cm-entry.js'],
+    outfile: 'src/webview/ui/cm-bundle.js',
+    format: 'iife',
+    globalName: 'CM',
+    platform: 'browser',
+  });
+
+  if (isWatch) {
+    await Promise.all([ext.watch(), cm.watch()]);
+    console.log('Watching...');
+  } else {
+    await ext.rebuild();
+    await ext.dispose();
+    await cm.rebuild();
+    await cm.dispose();
+    console.log('Build complete.');
+  }
+}
+
+build().catch(() => process.exit(1));

@@ -4,6 +4,24 @@ let state = { project: null, global: null, globalUserConfig: {}, isProjectInitia
 let currentScope = 'project';
 let currentSection = 'dashboard';
 
+// --- CodeMirror editors ---
+const editors = {};
+
+function getOrCreateEditor(id, initialDoc, onChange) {
+  if (editors[id]) return editors[id];
+  const container = document.getElementById(id);
+  if (!container) return null;
+  container.innerHTML = '';
+  container.style.height = container.dataset.height || '360px';
+  const view = CM.createEditor(container, initialDoc, onChange);
+  editors[id] = view;
+  return view;
+}
+
+function editorValue(id) {
+  return editors[id] ? editors[id].state.doc.toString() : '';
+}
+
 let mcpEnvRows = [];
 let mcpHeaderRows = [];
 
@@ -683,27 +701,30 @@ document.getElementById('save-hooks').addEventListener('click', () => {
 
 // --- CLAUDE.md ---
 function renderClaudeMd() {
-  const editor = document.getElementById('claudemd-editor');
-  if (document.activeElement !== editor) editor.value = state.project?.claudeMd ?? '';
+  const content = state.project?.claudeMd ?? '';
+  const ed = getOrCreateEditor('claudemd-editor', content, () => markEditorDirty('save-claudemd'));
+  if (ed) CM.setEditorContent(ed, content);
 }
 document.getElementById('save-claudemd').addEventListener('click', () => {
-  vscode.postMessage({ type: 'saveClaudeMd', content: document.getElementById('claudemd-editor').value });
+  vscode.postMessage({ type: 'saveClaudeMd', content: editorValue('claudemd-editor') });
 });
 
 // --- .claudeignore ---
 function renderClaudeIgnore() {
-  const editor = document.getElementById('claudeignore-editor');
-  if (document.activeElement !== editor) editor.value = state.project?.claudeIgnore ?? '';
+  const content = state.project?.claudeIgnore ?? '';
+  const ed = getOrCreateEditor('claudeignore-editor', content, () => markEditorDirty('save-claudeignore'));
+  if (ed) CM.setEditorContent(ed, content);
 }
 document.getElementById('save-claudeignore').addEventListener('click', () => {
-  vscode.postMessage({ type: 'saveClaudeIgnore', content: document.getElementById('claudeignore-editor').value });
+  vscode.postMessage({ type: 'saveClaudeIgnore', content: editorValue('claudeignore-editor') });
 });
 
 // --- Memory ---
 function renderMemory() {
   const glob = state.global;
-  const editor = document.getElementById('memory-md-editor');
-  if (document.activeElement !== editor) editor.value = glob?.memoryMd ?? '';
+  const content = glob?.memoryMd ?? '';
+  const ed = getOrCreateEditor('memory-md-editor', content, () => markEditorDirty('save-memory-md'));
+  if (ed) CM.setEditorContent(ed, content);
 
   const list = document.getElementById('memory-files-list');
   const empty = document.getElementById('memory-files-empty');
@@ -732,7 +753,7 @@ function renderMemory() {
 }
 
 document.getElementById('save-memory-md').addEventListener('click', () => {
-  vscode.postMessage({ type: 'saveMemoryMd', content: document.getElementById('memory-md-editor').value });
+  vscode.postMessage({ type: 'saveMemoryMd', content: editorValue('memory-md-editor') });
 });
 
 // --- File Sections (rules, commands, skills, workflows, agents) ---
@@ -968,6 +989,10 @@ function markDirty(sectionEl) {
 
 function clearAllDirty() {
   document.querySelectorAll('button.dirty').forEach(btn => btn.classList.remove('dirty'));
+}
+
+function markEditorDirty(btnId) {
+  document.getElementById(btnId)?.classList.add('dirty');
 }
 
 // Listen for any input/change in each section and mark its save buttons dirty
