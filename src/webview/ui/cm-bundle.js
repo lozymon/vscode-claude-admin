@@ -28132,22 +28132,22 @@ Please report this to https://github.com/markedjs/marked.`, e) {
       { label: "H2", tip: "Heading 2", fn: () => linePrefix(view, "## ") },
       { label: "H3", tip: "Heading 3", fn: () => linePrefix(view, "### ") },
       "sep",
-      { label: "B", tip: "Bold", style: "font-weight:700", fn: () => wrapSel(view, "**") },
-      { label: "I", tip: "Italic", style: "font-style:italic", fn: () => wrapSel(view, "*") },
-      { label: "`", tip: "Inline code", style: "font-family:monospace", fn: () => wrapSel(view, "`") },
-      { label: "\u2325`", tip: "Code block", style: "font-family:monospace;font-size:10px", fn: () => insertCodeBlock(view) },
+      { label: "Bold", tip: "Bold (wrap with **)", style: "font-weight:700", fn: () => wrapSel(view, "**") },
+      { label: "Italic", tip: "Italic (wrap with *)", style: "font-style:italic", fn: () => wrapSel(view, "*") },
+      { label: "Code", tip: "Inline code", style: "font-family:monospace", fn: () => wrapSel(view, "`") },
+      { label: "Block", tip: "Code block", style: "font-family:monospace", fn: () => insertCodeBlock(view) },
       "sep",
-      { label: "\u2022", tip: "Bullet list", fn: () => linePrefix(view, "- ") },
-      { label: "1.", tip: "Numbered list", fn: () => linePrefix(view, "1. ") },
-      { label: "\u275D", tip: "Blockquote", fn: () => linePrefix(view, "> ") },
-      { label: "\u2014", tip: "Horizontal rule", fn: () => {
+      { label: "\u2022 List", tip: "Bullet list", fn: () => linePrefix(view, "- ") },
+      { label: "1. List", tip: "Numbered list", fn: () => linePrefix(view, "1. ") },
+      { label: "Quote", tip: "Blockquote", fn: () => linePrefix(view, "> ") },
+      { label: "\u2500\u2500 HR", tip: "Horizontal rule", fn: () => {
         const { from } = view.state.selection.main;
         const line = view.state.doc.lineAt(from);
         view.dispatch({ changes: { from: line.to, insert: "\n\n---\n" } });
         view.focus();
       } },
       "spacer",
-      { label: "\u2315", tip: "Find & Replace (Ctrl+F)", fn: () => openSearchPanel(view) },
+      { label: "Find", tip: "Find & Replace (Ctrl+F)", fn: () => openSearchPanel(view) },
       { label: "Preview", tip: "Toggle preview", id: "preview-toggle", fn: () => togglePreview() }
     ];
     toolDefs.forEach((t2) => {
