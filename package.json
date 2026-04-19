@@ -1,0 +1,83 @@
+{
+  "name": "vscode-claude-admin",
+  "displayName": "Claude Code Admin",
+  "description": "GUI admin panel for Claude Code configuration",
+  "version": "0.1.0",
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Other"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "claudeAdmin",
+          "title": "Claude Code",
+          "icon": "media/claude-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "claudeAdmin": [
+        {
+          "id": "claudeAdminTree",
+          "name": "Configuration",
+          "type": "tree"
+        }
+      ]
+    },
+    "commands": [
+      {
+        "command": "claudeAdmin.openSection",
+        "title": "Open Claude Admin Section"
+      },
+      {
+        "command": "claudeAdmin.refresh",
+        "title": "Refresh",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "claudeAdmin.newFile",
+        "title": "New File",
+        "icon": "$(add)"
+      },
+      {
+        "command": "claudeAdmin.deleteFile",
+        "title": "Delete File",
+        "icon": "$(trash)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "claudeAdmin.refresh",
+          "when": "view == claudeAdminTree",
+          "group": "navigation"
+        }
+      ],
+      "view/item/context": [
+        {
+          "command": "claudeAdmin.newFile",
+          "when": "viewItem == fileSection",
+          "group": "inline"
+        },
+        {
+          "command": "claudeAdmin.deleteFile",
+          "when": "viewItem == file",
+          "group": "inline"
+        }
+      ]
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.js",
+    "watch": "node esbuild.js --watch",
+    "vscode:prepublish": "node esbuild.js --production"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "esbuild": "^0.20.0",
+    "typescript": "^5.3.0"
+  }
+}
