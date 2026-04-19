@@ -41,7 +41,7 @@
       width: 200px;
       min-width: 200px;
       background: var(--sidebar-bg);
-      border-right: 1px solid var(--border);
+      border-left: 1px solid var(--border);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -383,48 +383,6 @@
 </head>
 <body>
 
-  <!-- Sidebar -->
-  <aside class="sidebar">
-    <div class="sidebar-header">
-      <h1>Claude Code</h1>
-      <div class="scope-switch">
-        <button class="scope-tab active" data-scope="project">Project</button>
-        <button class="scope-tab" data-scope="global">Global</button>
-      </div>
-    </div>
-    <nav class="nav">
-      <div class="nav-group-label">Settings</div>
-      <button class="nav-btn active" data-section="model">
-        <span class="nav-icon">⚙</span> Model
-      </button>
-      <button class="nav-btn" data-section="mcp">
-        <span class="nav-icon">⚡</span> MCP Servers
-      </button>
-      <button class="nav-btn" data-section="permissions">
-        <span class="nav-icon">🔒</span> Permissions
-      </button>
-      <button class="nav-btn" data-section="hooks">
-        <span class="nav-icon">🪝</span> Hooks
-      </button>
-      <div class="nav-group-label project-only">Project Files</div>
-      <button class="nav-btn project-only" data-section="claudeMd">
-        <span class="nav-icon">📄</span> CLAUDE.md
-      </button>
-      <button class="nav-btn project-only" data-section="rules">
-        <span class="nav-icon">📏</span> Rules
-      </button>
-      <button class="nav-btn project-only" data-section="commands">
-        <span class="nav-icon">💬</span> Commands
-      </button>
-      <button class="nav-btn project-only" data-section="skills">
-        <span class="nav-icon">🛠</span> Skills
-      </button>
-      <button class="nav-btn project-only" data-section="workflows">
-        <span class="nav-icon">🔄</span> Workflows
-      </button>
-    </nav>
-  </aside>
-
   <!-- Main area -->
   <div class="main-area">
     <div class="topbar">
@@ -589,6 +547,48 @@
 
     </div><!-- .content -->
   </div><!-- .main-area -->
+
+  <!-- Sidebar (right) -->
+  <aside class="sidebar">
+    <div class="sidebar-header">
+      <h1>Claude Code</h1>
+      <div class="scope-switch">
+        <button class="scope-tab active" data-scope="project">Project</button>
+        <button class="scope-tab" data-scope="global">Global</button>
+      </div>
+    </div>
+    <nav class="nav">
+      <div class="nav-group-label">Settings</div>
+      <button class="nav-btn active" data-section="model">
+        <span class="nav-icon">⚙</span> Model
+      </button>
+      <button class="nav-btn" data-section="mcp">
+        <span class="nav-icon">⚡</span> MCP Servers
+      </button>
+      <button class="nav-btn" data-section="permissions">
+        <span class="nav-icon">🔒</span> Permissions
+      </button>
+      <button class="nav-btn" data-section="hooks">
+        <span class="nav-icon">🪝</span> Hooks
+      </button>
+      <div class="nav-group-label project-only">Project Files</div>
+      <button class="nav-btn project-only" data-section="claudeMd">
+        <span class="nav-icon">📄</span> CLAUDE.md
+      </button>
+      <button class="nav-btn project-only" data-section="rules">
+        <span class="nav-icon">📏</span> Rules
+      </button>
+      <button class="nav-btn project-only" data-section="commands">
+        <span class="nav-icon">💬</span> Commands
+      </button>
+      <button class="nav-btn project-only" data-section="skills">
+        <span class="nav-icon">🛠</span> Skills
+      </button>
+      <button class="nav-btn project-only" data-section="workflows">
+        <span class="nav-icon">🔄</span> Workflows
+      </button>
+    </nav>
+  </aside>
 
   <script src="main.js"></script>
 </body>
