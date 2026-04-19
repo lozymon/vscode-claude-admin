@@ -102,12 +102,24 @@ export class WebviewPanel {
         vscode.window.showTextDocument(vscode.Uri.file(msg.filePath));
         break;
       case 'newFile':
-        vscode.commands.executeCommand('claudeAdmin.newFile', { sectionType: msg.sectionType, scope: msg.scope });
+        this.handleNewFile(msg.sectionType, msg.scope);
         break;
       case 'deleteFile':
-        vscode.commands.executeCommand('claudeAdmin.deleteFile', { label: msg.name, filePath: msg.filePath });
+        this.handleDeleteFile(msg.filePath, msg.name);
         break;
     }
+  }
+
+  private async handleNewFile(sectionType: string, scope: 'project' | 'global') {
+    const name = await vscode.window.showInputBox({ prompt: `New ${sectionType} name (without .md)` });
+    if (!name) return;
+    await this.config.createMarkdownFile(sectionType, name, scope);
+  }
+
+  private async handleDeleteFile(filePath: string, name: string) {
+    const confirm = await vscode.window.showWarningMessage(`Delete ${name}?`, { modal: true }, 'Delete');
+    if (confirm !== 'Delete') return;
+    await this.config.deleteMarkdownFile(filePath);
   }
 
   private getHtml(): string {

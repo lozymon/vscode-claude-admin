@@ -8,66 +8,33 @@
   "activationEvents": ["onStartupFinished"],
   "main": "./dist/extension.js",
   "contributes": {
-    "viewsContainers": {
-      "activitybar": [
-        {
-          "id": "claudeAdmin",
-          "title": "Claude Code",
-          "icon": "media/claude-icon.svg"
-        }
-      ]
-    },
-    "views": {
-      "claudeAdmin": [
-        {
-          "id": "claudeAdminTree",
-          "name": "Configuration",
-          "type": "tree"
-        }
-      ]
-    },
     "commands": [
       {
-        "command": "claudeAdmin.openSection",
-        "title": "Open Claude Admin Section"
+        "command": "claudeAdmin.open",
+        "title": "Claude Code Admin: Open",
+        "icon": "media/claude-icon.svg"
       },
       {
         "command": "claudeAdmin.refresh",
-        "title": "Refresh",
+        "title": "Claude Code Admin: Refresh",
         "icon": "$(refresh)"
-      },
-      {
-        "command": "claudeAdmin.newFile",
-        "title": "New File",
-        "icon": "$(add)"
-      },
-      {
-        "command": "claudeAdmin.deleteFile",
-        "title": "Delete File",
-        "icon": "$(trash)"
       }
     ],
     "menus": {
-      "view/title": [
+      "editor/title": [
         {
-          "command": "claudeAdmin.refresh",
-          "when": "view == claudeAdminTree",
+          "command": "claudeAdmin.open",
           "group": "navigation"
         }
-      ],
-      "view/item/context": [
-        {
-          "command": "claudeAdmin.newFile",
-          "when": "viewItem == fileSection",
-          "group": "inline"
-        },
-        {
-          "command": "claudeAdmin.deleteFile",
-          "when": "viewItem == file",
-          "group": "inline"
-        }
       ]
-    }
+    },
+    "keybindings": [
+      {
+        "command": "claudeAdmin.open",
+        "key": "ctrl+shift+alt+c",
+        "mac": "cmd+shift+alt+c"
+      }
+    ]
   },
   "scripts": {
     "build": "node esbuild.js",
