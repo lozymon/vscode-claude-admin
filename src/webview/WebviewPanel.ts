@@ -141,6 +141,11 @@ export class WebviewPanel {
       case 'saveClaudeIgnore':
         this.config.saveClaudeIgnore(msg.content);
         break;
+      case 'saveNewAgent':
+        this.config.createAgentFile(msg.name, msg.content, msg.scope).then(() => {
+          this.panel.webview.postMessage({ type: 'stateUpdate', state: this.buildState() });
+        });
+        break;
       case 'saveMemoryMd':
         this.config.saveMemoryMd(msg.content);
         break;

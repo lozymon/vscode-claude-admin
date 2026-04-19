@@ -282,6 +282,23 @@ export class ConfigManager {
     this._onDidChange.fire();
   }
 
+  async createAgentFile(name: string, content: string, scope: 'project' | 'global') {
+    let dir: string;
+    if (scope === 'global') {
+      dir = globalPaths().agents;
+    } else {
+      const p = projectPaths();
+      if (!p) return;
+      dir = p.agents;
+    }
+    fs.mkdirSync(dir, { recursive: true });
+    const filePath = path.join(dir, `${name}.md`);
+    fs.writeFileSync(filePath, content, 'utf8');
+    await vscode.window.showTextDocument(vscode.Uri.file(filePath));
+    this.reload();
+    this._onDidChange.fire();
+  }
+
   async createMarkdownFile(sectionType: string, name: string, scope: 'project' | 'global') {
     let dir: string | undefined;
     if (scope === 'global') {

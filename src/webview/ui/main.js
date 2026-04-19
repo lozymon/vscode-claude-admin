@@ -58,6 +58,8 @@ window.addEventListener('message', event => {
   } else if (msg.type === 'stateUpdate') {
     state = msg.state;
     updateInitNav();
+    clearAllDirty();
+    showToast('Saved');
     render();
   }
 });
@@ -771,6 +773,55 @@ document.querySelectorAll('.add-file-btn').forEach(btn => {
   });
 });
 
+// --- Agent create form ---
+document.getElementById('new-agent-btn').addEventListener('click', () => {
+  document.getElementById('agent-create-form').style.display = 'block';
+});
+document.getElementById('agent-create-cancel').addEventListener('click', () => {
+  document.getElementById('agent-create-form').style.display = 'none';
+  resetAgentForm();
+});
+document.getElementById('agent-create-confirm').addEventListener('click', () => {
+  const name = document.getElementById('agent-name').value.trim();
+  if (!name) return;
+
+  const fields = {};
+  const desc = document.getElementById('agent-description').value.trim();
+  const model = document.getElementById('agent-model').value;
+  const permMode = document.getElementById('agent-permission-mode').value;
+  const maxTurns = document.getElementById('agent-max-turns').value.trim();
+  const isolation = document.getElementById('agent-isolation').value;
+  const tools = document.getElementById('agent-tools').value.trim();
+  const disallowed = document.getElementById('agent-disallowed-tools').value.trim();
+  const instructions = document.getElementById('agent-instructions').value.trim();
+
+  if (desc) fields.description = desc;
+  if (model) fields.model = model;
+  if (permMode) fields.permissionMode = permMode;
+  if (maxTurns) fields.maxTurns = Number(maxTurns);
+  if (isolation) fields.isolation = isolation;
+  if (tools) fields.tools = tools.split(/[\s,]+/).filter(Boolean).join(', ');
+  if (disallowed) fields.disallowedTools = disallowed.split(/[\s,]+/).filter(Boolean).join(', ');
+
+  const frontmatter = Object.entries(fields)
+    .map(([k, v]) => `${k}: ${v}`)
+    .join('\n');
+  const content = `---\n${frontmatter}\n---\n\n${instructions || `# ${name}\n\nDescribe what this agent does.`}\n`;
+
+  vscode.postMessage({ type: 'saveNewAgent', name, content, scope: currentScope });
+  document.getElementById('agent-create-form').style.display = 'none';
+  resetAgentForm();
+});
+
+function resetAgentForm() {
+  ['agent-name','agent-description','agent-max-turns','agent-tools','agent-disallowed-tools','agent-instructions'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('agent-model').value = '';
+  document.getElementById('agent-permission-mode').value = '';
+  document.getElementById('agent-isolation').value = '';
+}
+
 // --- Sandbox ---
 function renderSandbox() {
   const cfg = getConfig();
@@ -894,6 +945,35 @@ document.getElementById('init-run').addEventListener('click', () => {
       dirs,
     },
   });
+});
+
+// --- Toast ---
+let _toastTimer = null;
+function showToast(msg, type = 'success') {
+  clearTimeout(_toastTimer);
+  _toastTimer = setTimeout(() => {
+    const container = document.getElementById('toast-container');
+    const el = document.createElement('div');
+    el.className = `toast ${type}`;
+    el.textContent = msg;
+    container.appendChild(el);
+    setTimeout(() => { el.style.opacity = '0'; setTimeout(() => el.remove(), 320); }, 1800);
+  }, 80);
+}
+
+// --- Dirty tracking ---
+function markDirty(sectionEl) {
+  sectionEl.querySelectorAll('button[id^="save-"], button.save-trigger').forEach(btn => btn.classList.add('dirty'));
+}
+
+function clearAllDirty() {
+  document.querySelectorAll('button.dirty').forEach(btn => btn.classList.remove('dirty'));
+}
+
+// Listen for any input/change in each section and mark its save buttons dirty
+document.querySelectorAll('section').forEach(sec => {
+  sec.addEventListener('input', () => markDirty(sec));
+  sec.addEventListener('change', () => markDirty(sec));
 });
 
 // --- Utils ---

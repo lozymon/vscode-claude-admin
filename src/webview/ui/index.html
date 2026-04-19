@@ -419,6 +419,50 @@
     .dash-icon { font-size: 20px; margin-bottom: 8px; }
     .dash-value { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
     .dash-label { font-size: 11px; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.05em; }
+
+    /* ── Unsaved indicator ── */
+    button.dirty::after {
+      content: '';
+      display: inline-block;
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--vscode-notificationsWarningIcon-foreground, #f0a500);
+      margin-left: 7px;
+      vertical-align: middle;
+    }
+
+    /* ── Toast ── */
+    .toast-container {
+      position: fixed;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      z-index: 9999;
+      pointer-events: none;
+    }
+    .toast {
+      padding: 8px 18px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 600;
+      background: var(--vscode-notificationCenter-border, #333);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+      animation: toastIn 0.18s ease;
+      opacity: 1;
+      transition: opacity 0.3s;
+    }
+    .toast.success { border-color: var(--vscode-testing-iconPassed, #4caf50); }
+    .toast.error { border-color: var(--vscode-errorForeground, #f44336); color: var(--vscode-errorForeground, #f44336); }
+    @keyframes toastIn {
+      from { transform: translateY(8px); opacity: 0; }
+      to   { transform: translateY(0);   opacity: 1; }
+    }
   </style>
 </head>
 <body>
@@ -1010,9 +1054,59 @@
         <div class="card">
           <div class="card-header">Agents</div>
           <div class="card-body">
-            <div style="font-size:11px;opacity:0.6;margin-bottom:10px">Sub-agents with their own tool sets, models, and permission modes.</div>
+            <div style="font-size:11px;opacity:0.6;margin-bottom:10px">Sub-agents with their own tool sets, models, and permission modes. Stored in <code>.claude/agents/*.md</code>.</div>
             <div class="file-list" id="files-agents"></div>
-            <div style="margin-top:12px"><button class="add-file-btn" data-type="agents">+ New Agent</button></div>
+            <div style="margin-top:12px"><button id="new-agent-btn">+ New Agent</button></div>
+          </div>
+        </div>
+        <div id="agent-create-form" class="inline-form" style="display:none">
+          <h3>New Agent</h3>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px">
+            <div class="field"><label>Name</label><input id="agent-name" placeholder="my-agent"></div>
+            <div class="field"><label>Description</label><input id="agent-description" placeholder="What this agent does"></div>
+            <div class="field">
+              <label>Model</label>
+              <select id="agent-model">
+                <option value="">— inherit —</option>
+                <option value="claude-opus-4-7">claude-opus-4-7 — Opus 4.7</option>
+                <option value="claude-sonnet-4-6">claude-sonnet-4-6 — Sonnet 4.6</option>
+                <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 — Haiku 4.5</option>
+              </select>
+            </div>
+            <div class="field">
+              <label>Permission Mode</label>
+              <select id="agent-permission-mode">
+                <option value="">— inherit —</option>
+                <option value="default">Default</option>
+                <option value="acceptEdits">Accept Edits</option>
+                <option value="auto">Auto</option>
+                <option value="bypassPermissions">Bypass Permissions</option>
+              </select>
+            </div>
+            <div class="field"><label>Max Turns</label><input id="agent-max-turns" type="number" placeholder="10"></div>
+            <div class="field">
+              <label>Isolation</label>
+              <select id="agent-isolation">
+                <option value="">— none —</option>
+                <option value="worktree">Worktree</option>
+              </select>
+            </div>
+          </div>
+          <div class="field">
+            <label>Allowed Tools (space or comma separated)</label>
+            <input id="agent-tools" placeholder="Bash Read Write Edit Glob">
+          </div>
+          <div class="field">
+            <label>Disallowed Tools</label>
+            <input id="agent-disallowed-tools" placeholder="WebFetch WebSearch">
+          </div>
+          <div class="field">
+            <label>Initial Instructions</label>
+            <textarea id="agent-instructions" style="min-height:100px" placeholder="Describe what this agent should do..."></textarea>
+          </div>
+          <div class="row">
+            <button id="agent-create-confirm">Create Agent</button>
+            <button class="secondary" id="agent-create-cancel">Cancel</button>
           </div>
         </div>
       </section>
@@ -1252,6 +1346,7 @@
     </nav>
   </aside>
 
+  <div class="toast-container" id="toast-container"></div>
   <script src="main.js"></script>
 </body>
 </html>
