@@ -62,7 +62,18 @@ export class WebviewPanel {
   private handleMessage(msg: any) {
     switch (msg.type) {
       case 'saveModel':
-        this.config.saveProjectSettings({ model: msg.model });
+        this.saveSettings(msg.scope, { model: msg.model, smallModel: msg.smallModel || undefined });
+        break;
+      case 'saveAdvanced':
+        this.saveSettings(msg.scope, {
+          systemPrompt: msg.systemPrompt || undefined,
+          appendSystemPrompt: msg.appendSystemPrompt || undefined,
+          bashTimeout: msg.bashTimeout ? Number(msg.bashTimeout) : undefined,
+          maxThinkingTokens: msg.maxThinkingTokens ? Number(msg.maxThinkingTokens) : undefined,
+        });
+        break;
+      case 'saveEnv':
+        this.saveSettings(msg.scope, { env: msg.env });
         break;
       case 'saveMcp':
         this.config.saveMcpServers(msg.servers);
@@ -81,22 +92,20 @@ export class WebviewPanel {
         break;
       }
       case 'savePermissions': {
-        const scope: 'project' | 'global' = msg.scope;
-        const settings: Settings = scope === 'project'
-          ? { ...this.config.projectConfig.settings, permissions: msg.permissions }
-          : { ...this.config.globalConfig.settings, permissions: msg.permissions };
-        if (scope === 'project') this.config.saveProjectSettings(settings);
-        else this.config.saveGlobalSettings(settings);
+        this.saveSettings(msg.scope, { permissions: msg.permissions });
         break;
       }
-      case 'saveHooks': {
-        const scope: 'project' | 'global' = msg.scope;
-        if (scope === 'project') this.config.saveProjectSettings({ hooks: msg.hooks });
-        else this.config.saveGlobalSettings({ hooks: msg.hooks });
+      case 'saveHooks':
+        this.saveSettings(msg.scope, { hooks: msg.hooks });
         break;
-      }
       case 'saveClaudeMd':
         this.config.saveClaudeMd(msg.content);
+        break;
+      case 'saveClaudeIgnore':
+        this.config.saveClaudeIgnore(msg.content);
+        break;
+      case 'saveMemoryMd':
+        this.config.saveMemoryMd(msg.content);
         break;
       case 'openFile':
         vscode.window.showTextDocument(vscode.Uri.file(msg.filePath));
@@ -108,6 +117,11 @@ export class WebviewPanel {
         this.handleDeleteFile(msg.filePath, msg.name);
         break;
     }
+  }
+
+  private saveSettings(scope: 'project' | 'global', patch: Partial<Settings>) {
+    if (scope === 'project') this.config.saveProjectSettings(patch);
+    else this.config.saveGlobalSettings(patch);
   }
 
   private async handleNewFile(sectionType: string, scope: 'project' | 'global') {

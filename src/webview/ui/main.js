@@ -2,7 +2,10 @@ const vscode = acquireVsCodeApi();
 
 let state = { project: null, global: null };
 let currentScope = 'project';
-let currentSection = 'model';
+let currentSection = 'dashboard';
+
+// temporary env rows for MCP add form
+let mcpEnvRows = [];
 
 // --- Nav ---
 document.querySelectorAll('.scope-tab').forEach(btn => {
@@ -14,8 +17,8 @@ document.querySelectorAll('.scope-tab').forEach(btn => {
     document.querySelectorAll('.project-only').forEach(el => {
       el.style.display = currentScope === 'global' ? 'none' : '';
     });
-    if (currentScope === 'global' && ['claudeMd','rules','commands','skills','workflows'].includes(currentSection)) {
-      activateSection('permissions');
+    if (currentScope === 'global' && ['claudeMd','claudeIgnore','rules','commands','skills','workflows'].includes(currentSection)) {
+      activateSection('dashboard');
     } else {
       render();
     }
@@ -31,10 +34,7 @@ function activateSection(name) {
   document.querySelectorAll('.nav-btn').forEach(b => b.classList.toggle('active', b.dataset.section === name));
   document.querySelectorAll('section').forEach(s => s.classList.toggle('active', s.id === `sec-${name}`));
   const activeBtn = document.querySelector(`.nav-btn[data-section="${name}"]`);
-  if (activeBtn) {
-    const label = activeBtn.textContent.trim();
-    document.getElementById('topbar-title').textContent = label;
-  }
+  if (activeBtn) document.getElementById('topbar-title').textContent = activeBtn.textContent.trim();
   document.getElementById('topbar-scope').textContent = currentScope === 'project' ? 'Project' : 'Global';
   render();
 }
@@ -45,8 +45,8 @@ window.addEventListener('message', event => {
   if (msg.type === 'init') {
     state = msg.state;
     currentScope = msg.scope ?? 'project';
-    activateSection(msg.section ?? 'model');
     document.querySelectorAll('.scope-tab').forEach(b => b.classList.toggle('active', b.dataset.scope === currentScope));
+    activateSection(msg.section ?? 'dashboard');
   } else if (msg.type === 'stateUpdate') {
     state = msg.state;
     render();
@@ -60,27 +60,155 @@ function getConfig() {
 // --- Render ---
 function render() {
   if (!state.project) return;
+  renderDashboard();
   renderModel();
+  renderEnv();
+  renderAdvanced();
   renderMcp();
   renderPermissions();
   renderHooks();
   renderClaudeMd();
+  renderClaudeIgnore();
+  renderMemory();
   renderFileSection('rules');
   renderFileSection('commands');
   renderFileSection('skills');
   renderFileSection('workflows');
 }
 
+// --- Dashboard ---
+function renderDashboard() {
+  const grid = document.getElementById('dash-grid');
+  if (!grid) return;
+  const proj = state.project;
+  const glob = state.global;
+  const cfg = getConfig();
+  if (!cfg) return;
+
+  const mcpCount = Object.keys(proj?.mcpServers ?? {}).length;
+  const allowCount = cfg.settings?.permissions?.allow?.length ?? 0;
+  const denyCount = cfg.settings?.permissions?.deny?.length ?? 0;
+  const hookCount = Object.values(cfg.settings?.hooks ?? {}).reduce((n, arr) => n + arr.length, 0);
+  const envCount = Object.keys(cfg.settings?.env ?? {}).length;
+  const memCount = (glob?.memory ?? []).length;
+
+  const cards = [
+    { label: 'Model', value: cfg.settings?.model ?? 'not set', icon: '⚙', section: 'model' },
+    { label: 'MCP Servers', value: mcpCount, icon: '⚡', section: 'mcp' },
+    { label: 'Allow Rules', value: allowCount, icon: '✅', section: 'permissions' },
+    { label: 'Deny Rules', value: denyCount, icon: '🚫', section: 'permissions' },
+    { label: 'Hooks', value: hookCount, icon: '🪝', section: 'hooks' },
+    { label: 'Env Vars', value: envCount, icon: '🌿', section: 'env' },
+    { label: 'Memory Files', value: memCount, icon: '🧠', section: 'memory' },
+  ];
+
+  if (currentScope === 'project') {
+    cards.push(
+      { label: 'Rules', value: proj?.rules?.length ?? 0, icon: '📏', section: 'rules' },
+      { label: 'Commands', value: proj?.commands?.length ?? 0, icon: '💬', section: 'commands' },
+      { label: 'Skills', value: proj?.skills?.length ?? 0, icon: '🛠', section: 'skills' },
+      { label: 'Workflows', value: proj?.workflows?.length ?? 0, icon: '🔄', section: 'workflows' },
+    );
+  }
+
+  grid.innerHTML = cards.map(c => `
+    <div class="dash-card" data-section="${c.section}" style="cursor:pointer">
+      <div class="dash-icon">${c.icon}</div>
+      <div class="dash-value">${c.value}</div>
+      <div class="dash-label">${c.label}</div>
+    </div>
+  `).join('');
+
+  grid.querySelectorAll('.dash-card').forEach(card => {
+    card.addEventListener('click', () => activateSection(card.dataset.section));
+  });
+}
+
 // --- Model ---
 function renderModel() {
-  const cfg = state.project;
+  const cfg = getConfig();
   if (!cfg) return;
-  const sel = document.getElementById('model-select');
-  sel.value = cfg.settings?.model ?? 'claude-sonnet-4-6';
+  document.getElementById('model-select').value = cfg.settings?.model ?? 'claude-sonnet-4-6';
+  document.getElementById('small-model-select').value = cfg.settings?.smallModel ?? '';
 }
 
 document.getElementById('save-model').addEventListener('click', () => {
-  vscode.postMessage({ type: 'saveModel', model: document.getElementById('model-select').value });
+  vscode.postMessage({
+    type: 'saveModel',
+    scope: currentScope,
+    model: document.getElementById('model-select').value,
+    smallModel: document.getElementById('small-model-select').value,
+  });
+});
+
+// --- Environment Variables ---
+function renderEnv() {
+  const cfg = getConfig();
+  if (!cfg) return;
+  const env = cfg.settings?.env ?? {};
+  const tbody = document.getElementById('env-tbody');
+  tbody.innerHTML = '';
+  Object.entries(env).forEach(([k, v]) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><code>${esc(k)}</code></td>
+      <td style="font-family:monospace;font-size:11px">${esc(v)}</td>
+      <td><button class="icon-btn danger remove-env" data-key="${esc(k)}">✕</button></td>
+    `;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('.remove-env').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const cfg = getConfig();
+      const env = { ...(cfg.settings?.env ?? {}) };
+      delete env[btn.dataset.key];
+      if (currentScope === 'project') state.project.settings.env = env;
+      else state.global.settings.env = env;
+      renderEnv();
+    });
+  });
+}
+
+document.getElementById('env-add').addEventListener('click', () => {
+  const k = document.getElementById('env-key').value.trim();
+  const v = document.getElementById('env-val').value.trim();
+  if (!k) return;
+  const cfg = getConfig();
+  const env = { ...(cfg.settings?.env ?? {}), [k]: v };
+  if (currentScope === 'project') state.project.settings.env = env;
+  else state.global.settings.env = env;
+  document.getElementById('env-key').value = '';
+  document.getElementById('env-val').value = '';
+  renderEnv();
+});
+
+document.getElementById('save-env').addEventListener('click', () => {
+  const cfg = getConfig();
+  vscode.postMessage({ type: 'saveEnv', scope: currentScope, env: cfg.settings?.env ?? {} });
+});
+
+// --- Advanced ---
+function renderAdvanced() {
+  const cfg = getConfig();
+  if (!cfg) return;
+  const s = cfg.settings ?? {};
+  if (document.activeElement !== document.getElementById('system-prompt'))
+    document.getElementById('system-prompt').value = s.systemPrompt ?? '';
+  if (document.activeElement !== document.getElementById('append-system-prompt'))
+    document.getElementById('append-system-prompt').value = s.appendSystemPrompt ?? '';
+  document.getElementById('bash-timeout').value = s.bashTimeout ?? '';
+  document.getElementById('max-thinking-tokens').value = s.maxThinkingTokens ?? '';
+}
+
+document.getElementById('save-advanced').addEventListener('click', () => {
+  vscode.postMessage({
+    type: 'saveAdvanced',
+    scope: currentScope,
+    systemPrompt: document.getElementById('system-prompt').value,
+    appendSystemPrompt: document.getElementById('append-system-prompt').value,
+    bashTimeout: document.getElementById('bash-timeout').value,
+    maxThinkingTokens: document.getElementById('max-thinking-tokens').value,
+  });
 });
 
 // --- MCP ---
@@ -95,11 +223,13 @@ function renderMcp() {
   tbody.innerHTML = '';
   for (const [name, srv] of Object.entries(servers)) {
     const enabled = !disabled.has(name);
+    const envEntries = Object.entries(srv.env ?? {});
     const tr = document.createElement('tr');
     tr.innerHTML = `
       <td><strong>${esc(name)}</strong></td>
       <td>${esc(srv.command)}</td>
       <td style="font-family:monospace;font-size:11px">${esc((srv.args ?? []).join(' '))}</td>
+      <td style="font-size:11px;opacity:0.7">${envEntries.map(([k]) => esc(k)).join(', ') || '—'}</td>
       <td>
         <label class="toggle">
           <input type="checkbox" ${enabled ? 'checked' : ''} data-name="${esc(name)}">
@@ -109,6 +239,12 @@ function renderMcp() {
       <td><button class="icon-btn danger delete-mcp" data-name="${esc(name)}">✕</button></td>
     `;
     tbody.appendChild(tr);
+  }
+
+  // update table header if needed
+  const thead = document.querySelector('#mcp-table thead tr');
+  if (thead && thead.children.length === 5) {
+    thead.innerHTML = '<th>Name</th><th>Command</th><th>Args</th><th>Env</th><th>Enabled</th><th></th>';
   }
 
   tbody.querySelectorAll('input[type=checkbox]').forEach(cb => {
@@ -123,23 +259,52 @@ function renderMcp() {
   });
 }
 
+// MCP env rows
+document.getElementById('mcp-env-add').addEventListener('click', () => {
+  const k = document.getElementById('mcp-env-key').value.trim();
+  const v = document.getElementById('mcp-env-val').value.trim();
+  if (!k) return;
+  mcpEnvRows.push({ k, v });
+  document.getElementById('mcp-env-key').value = '';
+  document.getElementById('mcp-env-val').value = '';
+  renderMcpEnvRows();
+});
+
+function renderMcpEnvRows() {
+  const tbody = document.getElementById('mcp-env-tbody');
+  tbody.innerHTML = '';
+  mcpEnvRows.forEach((row, i) => {
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td><code>${esc(row.k)}</code></td><td>${esc(row.v)}</td><td><button class="icon-btn danger" data-i="${i}">✕</button></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('button').forEach(btn => {
+    btn.addEventListener('click', () => { mcpEnvRows.splice(Number(btn.dataset.i), 1); renderMcpEnvRows(); });
+  });
+}
+
 document.getElementById('add-mcp-btn').addEventListener('click', () => {
   document.getElementById('mcp-add-form').style.display = 'block';
 });
 document.getElementById('mcp-add-cancel').addEventListener('click', () => {
   document.getElementById('mcp-add-form').style.display = 'none';
+  mcpEnvRows = [];
+  renderMcpEnvRows();
 });
 document.getElementById('mcp-add-confirm').addEventListener('click', () => {
   const name = document.getElementById('mcp-name').value.trim();
   const cmd = document.getElementById('mcp-cmd').value.trim();
   const args = document.getElementById('mcp-args').value.trim().split(/\s+/).filter(Boolean);
   if (!name || !cmd) return;
-  const updated = { ...(state.project?.mcpServers ?? {}), [name]: { command: cmd, args } };
+  const env = mcpEnvRows.length ? Object.fromEntries(mcpEnvRows.map(r => [r.k, r.v])) : undefined;
+  const updated = { ...(state.project?.mcpServers ?? {}), [name]: { command: cmd, args, ...(env ? { env } : {}) } };
   vscode.postMessage({ type: 'saveMcp', servers: updated });
   document.getElementById('mcp-add-form').style.display = 'none';
   document.getElementById('mcp-name').value = '';
   document.getElementById('mcp-cmd').value = '';
   document.getElementById('mcp-args').value = '';
+  mcpEnvRows = [];
+  renderMcpEnvRows();
 });
 
 // --- Permissions ---
@@ -189,7 +354,6 @@ document.getElementById('allow-add').addEventListener('click', () => addPermissi
 document.getElementById('deny-add').addEventListener('click', () => addPermission('deny'));
 document.getElementById('allow-input').addEventListener('keydown', e => { if (e.key === 'Enter') addPermission('allow'); });
 document.getElementById('deny-input').addEventListener('keydown', e => { if (e.key === 'Enter') addPermission('deny'); });
-
 document.getElementById('save-permissions').addEventListener('click', () => {
   const cfg = getConfig();
   vscode.postMessage({ type: 'savePermissions', scope: currentScope, permissions: cfg.settings?.permissions });
@@ -265,7 +429,6 @@ document.getElementById('hook-add-confirm').addEventListener('click', () => {
   document.getElementById('hook-matcher').value = '';
   document.getElementById('hook-command').value = '';
 });
-
 document.getElementById('save-hooks').addEventListener('click', () => {
   const cfg = getConfig();
   vscode.postMessage({ type: 'saveHooks', scope: currentScope, hooks: cfg.settings?.hooks ?? {} });
@@ -274,13 +437,55 @@ document.getElementById('save-hooks').addEventListener('click', () => {
 // --- CLAUDE.md ---
 function renderClaudeMd() {
   const editor = document.getElementById('claudemd-editor');
-  if (document.activeElement !== editor) {
-    editor.value = state.project?.claudeMd ?? '';
+  if (document.activeElement !== editor) editor.value = state.project?.claudeMd ?? '';
+}
+document.getElementById('save-claudemd').addEventListener('click', () => {
+  vscode.postMessage({ type: 'saveClaudeMd', content: document.getElementById('claudemd-editor').value });
+});
+
+// --- .claudeignore ---
+function renderClaudeIgnore() {
+  const editor = document.getElementById('claudeignore-editor');
+  if (document.activeElement !== editor) editor.value = state.project?.claudeIgnore ?? '';
+}
+document.getElementById('save-claudeignore').addEventListener('click', () => {
+  vscode.postMessage({ type: 'saveClaudeIgnore', content: document.getElementById('claudeignore-editor').value });
+});
+
+// --- Memory ---
+function renderMemory() {
+  const glob = state.global;
+  const editor = document.getElementById('memory-md-editor');
+  if (document.activeElement !== editor) editor.value = glob?.memoryMd ?? '';
+
+  const list = document.getElementById('memory-files-list');
+  const empty = document.getElementById('memory-files-empty');
+  const files = glob?.memory ?? [];
+  list.innerHTML = '';
+  if (files.length === 0) {
+    empty.style.display = '';
+  } else {
+    empty.style.display = 'none';
+    files.forEach(f => {
+      const div = document.createElement('div');
+      div.className = 'file-item';
+      div.innerHTML = `
+        <span class="name">${esc(f.name)}</span>
+        <span class="desc">${esc(f.content.split('\n').find(l => l.trim())?.replace(/^[-*#]+\s*/, '') ?? '')}</span>
+        <span class="actions">
+          <button class="icon-btn secondary open-mem" data-path="${esc(f.filePath)}">Open</button>
+        </span>
+      `;
+      list.appendChild(div);
+    });
+    list.querySelectorAll('.open-mem').forEach(btn => {
+      btn.addEventListener('click', () => vscode.postMessage({ type: 'openFile', filePath: btn.dataset.path }));
+    });
   }
 }
 
-document.getElementById('save-claudemd').addEventListener('click', () => {
-  vscode.postMessage({ type: 'saveClaudeMd', content: document.getElementById('claudemd-editor').value });
+document.getElementById('save-memory-md').addEventListener('click', () => {
+  vscode.postMessage({ type: 'saveMemoryMd', content: document.getElementById('memory-md-editor').value });
 });
 
 // --- File Sections ---
@@ -307,7 +512,6 @@ function renderFileSection(type) {
     `;
     container.appendChild(div);
   });
-
   container.querySelectorAll('.open-file').forEach(btn => {
     btn.addEventListener('click', () => vscode.postMessage({ type: 'openFile', filePath: btn.dataset.path }));
   });

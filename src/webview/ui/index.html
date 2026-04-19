@@ -379,6 +379,19 @@
 
     /* ── Divider ── */
     .divider { height: 1px; background: var(--border); margin: 16px 0; }
+
+    /* ── Dashboard cards ── */
+    .dash-card {
+      background: var(--card-bg);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      transition: border-color 0.15s, background 0.15s;
+    }
+    .dash-card:hover { border-color: var(--accent); background: var(--item-hover); }
+    .dash-icon { font-size: 20px; margin-bottom: 8px; }
+    .dash-value { font-size: 22px; font-weight: 700; margin-bottom: 4px; }
+    .dash-label { font-size: 11px; opacity: 0.55; text-transform: uppercase; letter-spacing: 0.05em; }
   </style>
 </head>
 <body>
@@ -391,10 +404,15 @@
     </div>
     <div class="content">
 
+      <!-- Dashboard -->
+      <section id="sec-dashboard" class="active">
+        <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(180px,1fr));gap:12px;margin-bottom:20px" id="dash-grid"></div>
+      </section>
+
       <!-- Model -->
-      <section id="sec-model" class="active">
+      <section id="sec-model">
         <div class="card">
-          <div class="card-header">Model Selection</div>
+          <div class="card-header">Primary Model</div>
           <div class="card-body">
             <div class="field">
               <label>Active Model</label>
@@ -404,10 +422,71 @@
                 <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 — Haiku 4.5</option>
               </select>
             </div>
+            <div class="field">
+              <label>Small / Background Model</label>
+              <select id="small-model-select">
+                <option value="">— same as primary —</option>
+                <option value="claude-opus-4-7">claude-opus-4-7 — Opus 4.7</option>
+                <option value="claude-sonnet-4-6">claude-sonnet-4-6 — Sonnet 4.6</option>
+                <option value="claude-haiku-4-5-20251001">claude-haiku-4-5 — Haiku 4.5</option>
+              </select>
+            </div>
             <div class="save-bar">
               <button id="save-model">Save</button>
             </div>
           </div>
+        </div>
+      </section>
+
+      <!-- Environment Variables -->
+      <section id="sec-env">
+        <div class="card">
+          <div class="card-header">Environment Variables</div>
+          <div class="card-body">
+            <table style="margin-bottom:12px">
+              <thead><tr><th>Key</th><th>Value</th><th></th></tr></thead>
+              <tbody id="env-tbody"></tbody>
+            </table>
+            <div class="row">
+              <input id="env-key" placeholder="VARIABLE_NAME" style="flex:1">
+              <input id="env-val" placeholder="value" style="flex:2">
+              <button id="env-add">Add</button>
+            </div>
+            <div class="save-bar"><button id="save-env">Save</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Advanced -->
+      <section id="sec-advanced">
+        <div class="card">
+          <div class="card-header">Prompts</div>
+          <div class="card-body">
+            <div class="field">
+              <label>System Prompt (override)</label>
+              <textarea id="system-prompt" style="min-height:120px"></textarea>
+            </div>
+            <div class="field">
+              <label>Append to System Prompt</label>
+              <textarea id="append-system-prompt" style="min-height:120px"></textarea>
+            </div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">Limits</div>
+          <div class="card-body">
+            <div class="field">
+              <label>Bash Timeout (ms)</label>
+              <input id="bash-timeout" type="number" placeholder="120000">
+            </div>
+            <div class="field">
+              <label>Max Thinking Tokens</label>
+              <input id="max-thinking-tokens" type="number" placeholder="8000">
+            </div>
+          </div>
+        </div>
+        <div class="save-bar" style="border:none;padding-top:0">
+          <button id="save-advanced">Save</button>
         </div>
       </section>
 
@@ -430,6 +509,18 @@
           <div class="field"><label>Name</label><input id="mcp-name" placeholder="my-server"></div>
           <div class="field"><label>Command</label><input id="mcp-cmd" placeholder="npx"></div>
           <div class="field"><label>Args (space separated)</label><input id="mcp-args" placeholder="-y @scope/package-mcp"></div>
+          <div class="field">
+            <label>Environment Variables (optional)</label>
+            <table style="margin-bottom:8px">
+              <thead><tr><th>Key</th><th>Value</th><th></th></tr></thead>
+              <tbody id="mcp-env-tbody"></tbody>
+            </table>
+            <div class="row">
+              <input id="mcp-env-key" placeholder="API_KEY" style="flex:1">
+              <input id="mcp-env-val" placeholder="value" style="flex:2">
+              <button id="mcp-env-add" type="button">Add</button>
+            </div>
+          </div>
           <div class="row">
             <button id="mcp-add-confirm">Add Server</button>
             <button class="secondary" id="mcp-add-cancel">Cancel</button>
@@ -545,6 +636,35 @@
         </div>
       </section>
 
+      <!-- .claudeignore -->
+      <section id="sec-claudeIgnore">
+        <div class="card">
+          <div class="card-header">.claudeignore</div>
+          <div class="card-body">
+            <textarea id="claudeignore-editor" style="min-height:200px;font-family:monospace"></textarea>
+            <div class="save-bar"><button id="save-claudeignore">Save</button></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Memory -->
+      <section id="sec-memory">
+        <div class="card">
+          <div class="card-header">MEMORY.md</div>
+          <div class="card-body">
+            <textarea id="memory-md-editor"></textarea>
+            <div class="save-bar"><button id="save-memory-md">Save</button></div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">Memory Files</div>
+          <div class="card-body">
+            <div class="file-list" id="memory-files-list"></div>
+            <div class="empty" id="memory-files-empty" style="display:none">No memory files.</div>
+          </div>
+        </div>
+      </section>
+
     </div><!-- .content -->
   </div><!-- .main-area -->
 
@@ -558,9 +678,18 @@
       </div>
     </div>
     <nav class="nav">
+      <button class="nav-btn active" data-section="dashboard">
+        <span class="nav-icon">🏠</span> Dashboard
+      </button>
       <div class="nav-group-label">Settings</div>
-      <button class="nav-btn active" data-section="model">
+      <button class="nav-btn" data-section="model">
         <span class="nav-icon">⚙</span> Model
+      </button>
+      <button class="nav-btn" data-section="env">
+        <span class="nav-icon">🌿</span> Environment
+      </button>
+      <button class="nav-btn" data-section="advanced">
+        <span class="nav-icon">🔧</span> Advanced
       </button>
       <button class="nav-btn" data-section="mcp">
         <span class="nav-icon">⚡</span> MCP Servers
@@ -575,6 +704,9 @@
       <button class="nav-btn project-only" data-section="claudeMd">
         <span class="nav-icon">📄</span> CLAUDE.md
       </button>
+      <button class="nav-btn project-only" data-section="claudeIgnore">
+        <span class="nav-icon">🚫</span> .claudeignore
+      </button>
       <button class="nav-btn project-only" data-section="rules">
         <span class="nav-icon">📏</span> Rules
       </button>
@@ -586,6 +718,10 @@
       </button>
       <button class="nav-btn project-only" data-section="workflows">
         <span class="nav-icon">🔄</span> Workflows
+      </button>
+      <div class="nav-group-label">Memory</div>
+      <button class="nav-btn" data-section="memory">
+        <span class="nav-icon">🧠</span> Memory
       </button>
     </nav>
   </aside>

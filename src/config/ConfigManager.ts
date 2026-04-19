@@ -3,7 +3,9 @@ import * as fs from 'fs';
 import * as path from 'path';
 import {
   ClaudeConfig,
+  GlobalConfig,
   MarkdownFile,
+  MemoryFile,
   McpServer,
   Settings,
   SettingsLocal,
@@ -16,11 +18,8 @@ export class ConfigManager {
 
   private watchers: vscode.FileSystemWatcher[] = [];
 
-  projectConfig: ClaudeConfig = this.emptyConfig();
-  globalConfig: { settings: Settings; commands: MarkdownFile[] } = {
-    settings: {},
-    commands: [],
-  };
+  projectConfig: ClaudeConfig = this.emptyProjectConfig();
+  globalConfig: GlobalConfig = this.emptyGlobalConfig();
 
   constructor() {
     this.reload();
@@ -32,16 +31,29 @@ export class ConfigManager {
     this.globalConfig = this.loadGlobal();
   }
 
-  private emptyConfig(): ClaudeConfig {
+  private emptyProjectConfig(): ClaudeConfig {
     return {
       settings: { permissions: { allow: [], deny: [] } },
       settingsLocal: {},
       mcpServers: {},
       claudeMd: '',
+      claudeIgnore: '',
       rules: [],
       commands: [],
       skills: [],
       workflows: [],
+    };
+  }
+
+  private emptyGlobalConfig(): GlobalConfig {
+    return {
+      settings: { permissions: { allow: [], deny: [] } },
+      commands: [],
+      rules: [],
+      skills: [],
+      workflows: [],
+      memoryMd: '',
+      memory: [],
     };
   }
 
@@ -58,6 +70,10 @@ export class ConfigManager {
     fs.writeFileSync(filePath, JSON.stringify(data, null, 2) + '\n', 'utf8');
   }
 
+  private readText(filePath: string): string {
+    return fs.existsSync(filePath) ? fs.readFileSync(filePath, 'utf8') : '';
+  }
+
   private readMarkdownFiles(dir: string): MarkdownFile[] {
     if (!fs.existsSync(dir)) return [];
     return fs
@@ -71,22 +87,28 @@ export class ConfigManager {
       });
   }
 
+  private readMemoryFiles(dir: string): MemoryFile[] {
+    if (!fs.existsSync(dir)) return [];
+    return fs
+      .readdirSync(dir)
+      .filter((f) => f.endsWith('.md'))
+      .map((f) => {
+        const filePath = path.join(dir, f);
+        const content = fs.readFileSync(filePath, 'utf8');
+        return { name: f.replace(/\.md$/, ''), filePath, content };
+      });
+  }
+
   private loadProject(): ClaudeConfig {
     const p = projectPaths();
-    if (!p) return this.emptyConfig();
+    if (!p) return this.emptyProjectConfig();
 
     const settings = this.readJson<Settings>(p.settingsJson) ?? {
       permissions: { allow: [], deny: [] },
     };
-    const settingsLocal =
-      this.readJson<SettingsLocal>(p.settingsLocalJson) ?? {};
-    const mcpFile = this.readJson<{ mcpServers: Record<string, McpServer> }>(
-      p.mcpJson,
-    );
+    const settingsLocal = this.readJson<SettingsLocal>(p.settingsLocalJson) ?? {};
+    const mcpFile = this.readJson<{ mcpServers: Record<string, McpServer> }>(p.mcpJson);
     const mcpServers = mcpFile?.mcpServers ?? settings.mcpServers ?? {};
-    const claudeMd = fs.existsSync(p.claudeMd)
-      ? fs.readFileSync(p.claudeMd, 'utf8')
-      : '';
 
     if (!settings.permissions) settings.permissions = { allow: [], deny: [] };
 
@@ -94,7 +116,8 @@ export class ConfigManager {
       settings,
       settingsLocal,
       mcpServers,
-      claudeMd,
+      claudeMd: this.readText(p.claudeMd),
+      claudeIgnore: this.readText(p.claudeIgnore),
       rules: this.readMarkdownFiles(p.rules),
       commands: this.readMarkdownFiles(p.commands),
       skills: this.readMarkdownFiles(p.skills),
@@ -102,12 +125,20 @@ export class ConfigManager {
     };
   }
 
-  private loadGlobal() {
+  private loadGlobal(): GlobalConfig {
     const g = globalPaths();
     const settings = this.readJson<Settings>(g.settingsJson) ?? {};
     if (!settings.permissions) settings.permissions = { allow: [], deny: [] };
-    const commands = this.readMarkdownFiles(g.commands);
-    return { settings, commands };
+
+    return {
+      settings,
+      commands: this.readMarkdownFiles(g.commands),
+      rules: this.readMarkdownFiles(g.rules),
+      skills: this.readMarkdownFiles(g.skills),
+      workflows: this.readMarkdownFiles(g.workflows),
+      memoryMd: this.readText(g.memoryMd),
+      memory: this.readMemoryFiles(g.memory),
+    };
   }
 
   private setupWatchers() {
@@ -119,6 +150,7 @@ export class ConfigManager {
       '**/.claude/settings.local.json',
       '**/.claude/.mcp.json',
       '**/CLAUDE.md',
+      '**/.claudeignore',
       '**/.claude/rules/*.md',
       '**/.claude/commands/*.md',
       '**/.claude/skills/*.md',
@@ -127,29 +159,21 @@ export class ConfigManager {
 
     for (const pattern of patterns) {
       const w = vscode.workspace.createFileSystemWatcher(pattern);
-      w.onDidChange(() => {
-        this.reload();
-        this._onDidChange.fire();
-      });
-      w.onDidCreate(() => {
-        this.reload();
-        this._onDidChange.fire();
-      });
-      w.onDidDelete(() => {
-        this.reload();
-        this._onDidChange.fire();
-      });
+      const fire = () => { this.reload(); this._onDidChange.fire(); };
+      w.onDidChange(fire);
+      w.onDidCreate(fire);
+      w.onDidDelete(fire);
       this.watchers.push(w);
     }
   }
 
   // --- Write methods ---
 
-  saveProjectSettings(settings: Settings) {
+  saveProjectSettings(patch: Partial<Settings>) {
     const p = projectPaths();
     if (!p) return;
     const existing = this.readJson<Settings>(p.settingsJson) ?? {};
-    this.writeJson(p.settingsJson, { ...existing, ...settings });
+    this.writeJson(p.settingsJson, { ...existing, ...patch });
     this.reload();
     this._onDidChange.fire();
   }
@@ -179,22 +203,35 @@ export class ConfigManager {
     this._onDidChange.fire();
   }
 
-  saveGlobalSettings(settings: Settings) {
-    const g = globalPaths();
-    const existing = this.readJson<Settings>(g.settingsJson) ?? {};
-    this.writeJson(g.settingsJson, { ...existing, ...settings });
+  saveClaudeIgnore(content: string) {
+    const p = projectPaths();
+    if (!p) return;
+    fs.writeFileSync(p.claudeIgnore, content, 'utf8');
     this.reload();
     this._onDidChange.fire();
   }
 
-  async createMarkdownFile(
-    sectionType: string,
-    name: string,
-    scope: 'project' | 'global',
-  ) {
+  saveGlobalSettings(patch: Partial<Settings>) {
+    const g = globalPaths();
+    const existing = this.readJson<Settings>(g.settingsJson) ?? {};
+    this.writeJson(g.settingsJson, { ...existing, ...patch });
+    this.reload();
+    this._onDidChange.fire();
+  }
+
+  saveMemoryMd(content: string) {
+    const g = globalPaths();
+    fs.mkdirSync(path.dirname(g.memoryMd), { recursive: true });
+    fs.writeFileSync(g.memoryMd, content, 'utf8');
+    this.reload();
+    this._onDidChange.fire();
+  }
+
+  async createMarkdownFile(sectionType: string, name: string, scope: 'project' | 'global') {
     let dir: string | undefined;
     if (scope === 'global') {
-      dir = globalPaths().commands;
+      const g = globalPaths();
+      dir = (g as any)[sectionType];
     } else {
       const p = projectPaths();
       if (!p) return;
