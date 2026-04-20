@@ -722,6 +722,45 @@ document.getElementById('save-hooks').addEventListener('click', () => {
   vscode.postMessage({ type: 'saveHooks', scope: currentScope, hooks: cfg.settings?.hooks ?? {} });
 });
 
+// --- List filters ---
+document.getElementById('perms-filter').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  ['allow-tags','ask-tags','deny-tags'].forEach(id => {
+    document.getElementById(id).querySelectorAll('.tag').forEach(tag => {
+      tag.style.display = q && !tag.textContent.toLowerCase().includes(q) ? 'none' : '';
+    });
+  });
+});
+
+document.getElementById('hooks-filter').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  document.getElementById('hooks-list').querySelectorAll('.hook-item').forEach(item => {
+    item.style.display = q && !item.textContent.toLowerCase().includes(q) ? 'none' : '';
+  });
+});
+
+document.getElementById('env-filter').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  document.getElementById('env-tbody').querySelectorAll('tr').forEach(tr => {
+    tr.style.display = q && !tr.textContent.toLowerCase().includes(q) ? 'none' : '';
+  });
+});
+
+// --- Export ---
+function exportSettingsJson() {
+  const cfg = getConfig();
+  const data = JSON.stringify(cfg?.settings ?? {}, null, 2);
+  const blob = new Blob([data], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `claude-${currentScope}-settings.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+document.getElementById('export-settings-btn').addEventListener('click', exportSettingsJson);
+document.getElementById('export-advanced-btn').addEventListener('click', exportSettingsJson);
+
 // --- CLAUDE.md ---
 function renderClaudeMd() {
   const content = state.project?.claudeMd ?? '';
@@ -833,7 +872,7 @@ function toggleInlineEditor(type, filePath, name) {
   renderFileSection(type);
 }
 
-const FM_TYPES = { commands: true, rules: true };
+const FM_TYPES = { commands: true, rules: true, skills: true };
 
 function openInlineEditor(type, filePath, name, content) {
   const wrap = document.getElementById(`inline-editor-${type}`);
@@ -922,6 +961,60 @@ function createFrontmatterPanel(type, meta, onChange) {
         <input class="fm-paths" value="${esc(meta.paths ?? '')}" placeholder="src/**/*.ts">
       </div>
     `;
+  } else if (type === 'skills') {
+    grid.innerHTML = `
+      <div class="field">
+        <label>Name</label>
+        <input class="fm-name" value="${esc(meta.name ?? '')}" placeholder="my-skill">
+      </div>
+      <div class="field">
+        <label>Argument Hint</label>
+        <input class="fm-argument-hint" value="${esc(meta['argument-hint'] ?? '')}" placeholder="&lt;search-term&gt;">
+      </div>
+      <div class="field fm-full">
+        <label>Description</label>
+        <input class="fm-description" value="${esc(meta.description ?? '')}" placeholder="What this skill does">
+      </div>
+      <div class="field fm-full">
+        <label>When to Use</label>
+        <textarea class="fm-when-to-use" style="min-height:56px;resize:vertical" placeholder="Use when the user asks to…">${esc(meta['when_to_use'] ?? '')}</textarea>
+      </div>
+      <div class="field">
+        <label>Allowed Tools</label>
+        <input class="fm-allowed-tools" value="${esc(meta['allowed-tools'] ?? '')}" placeholder="Bash Read Write">
+      </div>
+      <div class="field">
+        <label>Model</label>
+        <select class="fm-model">
+          <option value="">— inherit —</option>
+          <option value="claude-opus-4-7" ${meta.model === 'claude-opus-4-7' ? 'selected' : ''}>claude-opus-4-7</option>
+          <option value="claude-sonnet-4-6" ${meta.model === 'claude-sonnet-4-6' ? 'selected' : ''}>claude-sonnet-4-6</option>
+          <option value="claude-haiku-4-5-20251001" ${meta.model === 'claude-haiku-4-5-20251001' ? 'selected' : ''}>claude-haiku-4-5</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Effort</label>
+        <select class="fm-effort">
+          <option value="">— inherit —</option>
+          <option value="low" ${meta.effort === 'low' ? 'selected' : ''}>Low</option>
+          <option value="medium" ${meta.effort === 'medium' ? 'selected' : ''}>Medium</option>
+          <option value="high" ${meta.effort === 'high' ? 'selected' : ''}>High</option>
+          <option value="xhigh" ${meta.effort === 'xhigh' ? 'selected' : ''}>XHigh</option>
+          <option value="max" ${meta.effort === 'max' ? 'selected' : ''}>Max</option>
+        </select>
+      </div>
+      <div class="field" style="display:flex;align-items:center;justify-content:space-between">
+        <div style="font-size:12px;font-weight:500">User Invocable</div>
+        <label class="toggle"><input type="checkbox" class="fm-user-invocable" ${meta['user-invocable'] === 'true' ? 'checked' : ''}><span class="toggle-slider"></span></label>
+      </div>
+      <div class="field" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:12px;font-weight:500">Disable Model Invocation</div>
+          <div style="font-size:11px;opacity:0.55">Run without calling Claude</div>
+        </div>
+        <label class="toggle"><input type="checkbox" class="fm-disable-model-invocation" ${meta['disable-model-invocation'] === 'true' ? 'checked' : ''}><span class="toggle-slider"></span></label>
+      </div>
+    `;
   }
 
   grid.addEventListener('input', onChange);
@@ -941,6 +1034,25 @@ function readFrontmatterPanel(wrap, type) {
   } else if (type === 'rules') {
     const paths = wrap.querySelector('.fm-paths')?.value.trim();
     if (paths) meta.paths = paths;
+  } else if (type === 'skills') {
+    const name = wrap.querySelector('.fm-name')?.value.trim();
+    const desc = wrap.querySelector('.fm-description')?.value.trim();
+    const whenToUse = wrap.querySelector('.fm-when-to-use')?.value.trim();
+    const argHint = wrap.querySelector('.fm-argument-hint')?.value.trim();
+    const tools = wrap.querySelector('.fm-allowed-tools')?.value.trim();
+    const model = wrap.querySelector('.fm-model')?.value;
+    const effort = wrap.querySelector('.fm-effort')?.value;
+    const inv = wrap.querySelector('.fm-user-invocable')?.checked;
+    const disableModel = wrap.querySelector('.fm-disable-model-invocation')?.checked;
+    if (name) meta.name = name;
+    if (desc) meta.description = desc;
+    if (whenToUse) meta['when_to_use'] = whenToUse;
+    if (argHint) meta['argument-hint'] = argHint;
+    if (tools) meta['allowed-tools'] = tools;
+    if (model) meta.model = model;
+    if (effort) meta.effort = effort;
+    if (inv) meta['user-invocable'] = 'true';
+    if (disableModel) meta['disable-model-invocation'] = 'true';
   }
   return meta;
 }

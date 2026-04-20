@@ -489,6 +489,10 @@
     /* replace row input-wrap has no count inside */
     .vsc-row:last-child .vsc-input-wrap { flex: 1; }
 
+    /* ── List filter ── */
+    .list-filter { width: 100%; margin-bottom: 10px; background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--input-border); border-radius: 3px; padding: 5px 10px; font-size: 12px; font-family: inherit; outline: none; box-sizing: border-box; }
+    .list-filter:focus { border-color: var(--accent); }
+
     /* ── Hint chips ── */
     .hint-chips { display: flex; flex-wrap: wrap; gap: 5px; }
     .hint-chip { background: var(--item-hover); border: 1px solid var(--border); border-radius: 3px; padding: 2px 8px; font-size: 11px; font-family: monospace; color: var(--fg); opacity: 0.7; cursor: pointer; white-space: nowrap; }
@@ -682,6 +686,7 @@
         <div class="card">
           <div class="card-header">Environment Variables</div>
           <div class="card-body">
+            <input id="env-filter" class="list-filter" placeholder="Filter variables…">
             <table style="margin-bottom:12px">
               <thead><tr><th>Key</th><th>Value</th><th></th></tr></thead>
               <tbody id="env-tbody"></tbody>
@@ -882,8 +887,9 @@
             </div>
           </div>
         </div>
-        <div class="save-bar" style="border:none;padding-top:0">
+        <div class="save-bar" style="border:none;padding-top:0;gap:8px">
           <button id="save-advanced">Save</button>
+          <button class="secondary" id="export-advanced-btn">Export JSON</button>
         </div>
       </section>
 
@@ -981,6 +987,7 @@
             </div>
           </div>
         </div>
+        <input id="perms-filter" class="list-filter" placeholder="Filter rules…">
         <div class="card">
           <div class="card-header">Allow</div>
           <div class="card-body">
@@ -1012,7 +1019,10 @@
             </div>
           </div>
         </div>
-        <button id="save-permissions">Save Permissions</button>
+        <div class="save-bar" style="border:none;padding-top:0;gap:8px">
+          <button id="save-permissions">Save Permissions</button>
+          <button class="secondary" id="export-settings-btn">Export JSON</button>
+        </div>
       </section>
 
       <!-- Hooks -->
@@ -1020,6 +1030,7 @@
         <div class="card">
           <div class="card-header">Configured Hooks</div>
           <div class="card-body">
+            <input id="hooks-filter" class="list-filter" placeholder="Filter by event or command…">
             <div id="hooks-list"></div>
           </div>
         </div>
