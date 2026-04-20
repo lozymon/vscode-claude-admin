@@ -417,6 +417,7 @@ document.getElementById('mcp-type').addEventListener('change', () => {
   document.getElementById('mcp-args-field').style.display = isHttp ? 'none' : '';
   document.getElementById('mcp-url-field').style.display = isHttp ? '' : 'none';
   document.getElementById('mcp-headers-field').style.display = isHttp ? '' : 'none';
+  document.getElementById('mcp-oauth-field').style.display = isHttp ? '' : 'none';
 });
 
 // MCP env rows
@@ -491,6 +492,15 @@ document.getElementById('mcp-add-confirm').addEventListener('click', () => {
     if (mcpHeaderRows.length) server.headers = Object.fromEntries(mcpHeaderRows.map(r => [r.k, r.v]));
     const headersHelper = document.getElementById('mcp-headers-helper').value.trim();
     if (headersHelper) server.headersHelper = headersHelper;
+    const oauthClientId = document.getElementById('mcp-oauth-client-id').value.trim();
+    if (oauthClientId) {
+      server.oauth = {
+        clientId: oauthClientId,
+        callbackPort: document.getElementById('mcp-oauth-callback-port').value ? Number(document.getElementById('mcp-oauth-callback-port').value) : undefined,
+        authServerMetadataUrl: document.getElementById('mcp-oauth-metadata-url').value.trim() || undefined,
+        scopes: document.getElementById('mcp-oauth-scopes').value.trim() ? document.getElementById('mcp-oauth-scopes').value.trim().split(/\s+/) : undefined,
+      };
+    }
   } else {
     const cmd = document.getElementById('mcp-cmd').value.trim();
     if (!cmd) return;
@@ -513,6 +523,11 @@ document.getElementById('mcp-add-confirm').addEventListener('click', () => {
   document.getElementById('mcp-url-field').style.display = 'none';
   document.getElementById('mcp-headers-field').style.display = 'none';
   document.getElementById('mcp-headers-helper').value = '';
+  document.getElementById('mcp-oauth-client-id').value = '';
+  document.getElementById('mcp-oauth-callback-port').value = '';
+  document.getElementById('mcp-oauth-metadata-url').value = '';
+  document.getElementById('mcp-oauth-scopes').value = '';
+  document.getElementById('mcp-oauth-field').style.display = 'none';
   mcpEnvRows = [];
   mcpHeaderRows = [];
   renderMcpEnvRows();
@@ -764,6 +779,84 @@ function exportSettingsJson() {
 document.getElementById('export-settings-btn').addEventListener('click', exportSettingsJson);
 document.getElementById('export-advanced-btn').addEventListener('click', exportSettingsJson);
 
+// --- Diff view ---
+function diffObjects(oldObj, newObj, path = '') {
+  const changes = [];
+  const keys = new Set([...Object.keys(oldObj ?? {}), ...Object.keys(newObj ?? {})]);
+  for (const key of keys) {
+    const fp = path ? `${path}.${key}` : key;
+    const ov = oldObj?.[key], nv = newObj?.[key];
+    if (JSON.stringify(ov) === JSON.stringify(nv)) continue;
+    if (ov === undefined) changes.push({ type: 'added', path: fp, nv });
+    else if (nv === undefined) changes.push({ type: 'removed', path: fp, ov });
+    else if (ov && nv && typeof ov === 'object' && typeof nv === 'object' && !Array.isArray(ov) && !Array.isArray(nv)) {
+      changes.push(...diffObjects(ov, nv, fp));
+    } else {
+      changes.push({ type: 'changed', path: fp, ov, nv });
+    }
+  }
+  return changes;
+}
+
+function showDiffModal(current, pending, onSave) {
+  const changes = diffObjects(current, pending);
+  const content = document.getElementById('diff-content');
+  const empty = document.getElementById('diff-empty');
+  if (!changes.length) {
+    content.innerHTML = '';
+    empty.style.display = '';
+  } else {
+    empty.style.display = 'none';
+    const rows = changes.map(c => {
+      if (c.type === 'added')   return `<tr class="diff-added"><td>${esc(c.path)}</td><td class="diff-old">—</td><td>${esc(JSON.stringify(c.nv))}</td></tr>`;
+      if (c.type === 'removed') return `<tr class="diff-removed"><td>${esc(c.path)}</td><td class="diff-old">${esc(JSON.stringify(c.ov))}</td><td>—</td></tr>`;
+      return `<tr class="diff-changed"><td>${esc(c.path)}</td><td class="diff-old">${esc(JSON.stringify(c.ov))}</td><td>${esc(JSON.stringify(c.nv))}</td></tr>`;
+    }).join('');
+    content.innerHTML = `<table class="diff-table"><thead><tr><th>Field</th><th>Current</th><th>New</th></tr></thead><tbody>${rows}</tbody></table>`;
+  }
+  window._diffOnSave = onSave;
+  document.getElementById('diff-overlay').classList.add('open');
+}
+
+function readAdvancedForm() {
+  const attribCommit = document.getElementById('attribution-commit').value;
+  const attribPr = document.getElementById('attribution-pr').value;
+  const raw = {
+    systemPrompt: document.getElementById('system-prompt').value || undefined,
+    appendSystemPrompt: document.getElementById('append-system-prompt').value || undefined,
+    bashTimeout: document.getElementById('bash-timeout').value ? Number(document.getElementById('bash-timeout').value) : undefined,
+    maxThinkingTokens: document.getElementById('max-thinking-tokens').value ? Number(document.getElementById('max-thinking-tokens').value) : undefined,
+    viewMode: document.getElementById('view-mode').value || undefined,
+    defaultShell: document.getElementById('default-shell').value || undefined,
+    language: document.getElementById('language').value || undefined,
+    outputStyle: document.getElementById('output-style').value || undefined,
+    cleanupPeriodDays: document.getElementById('cleanup-period-days').value ? Number(document.getElementById('cleanup-period-days').value) : undefined,
+    autoUpdatesChannel: document.getElementById('auto-updates-channel').value || undefined,
+    includeGitInstructions: document.getElementById('include-git-instructions').checked || undefined,
+    respectGitignore: document.getElementById('respect-gitignore').checked || undefined,
+    fastModePerSessionOptIn: document.getElementById('fast-mode-per-session').checked || undefined,
+    prefersReducedMotion: document.getElementById('prefers-reduced-motion').checked || undefined,
+    attribution: (attribCommit || attribPr) ? { commit: attribCommit || undefined, pr: attribPr || undefined } : undefined,
+    availableModels: availableModels.length ? availableModels : undefined,
+    autoMemoryDirectory: document.getElementById('auto-memory-directory').value || undefined,
+    statusLine: document.getElementById('status-line').value || undefined,
+    fileSuggestion: document.getElementById('file-suggestion').value || undefined,
+    worktree: (symlinkDirs.length || sparsePaths.length) ? { symlinkDirectories: symlinkDirs.length ? symlinkDirs : undefined, sparsePaths: sparsePaths.length ? sparsePaths : undefined } : undefined,
+    companyAnnouncements: announcements.length ? announcements : undefined,
+  };
+  return JSON.parse(JSON.stringify(raw)); // strip undefined
+}
+
+document.getElementById('diff-advanced-btn').addEventListener('click', () => {
+  showDiffModal(getConfig()?.settings ?? {}, readAdvancedForm(), () => document.getElementById('save-advanced').click());
+});
+document.getElementById('diff-cancel').addEventListener('click', () => document.getElementById('diff-overlay').classList.remove('open'));
+document.getElementById('diff-overlay').addEventListener('click', e => { if (e.target === e.currentTarget) document.getElementById('diff-overlay').classList.remove('open'); });
+document.getElementById('diff-save').addEventListener('click', () => {
+  document.getElementById('diff-overlay').classList.remove('open');
+  window._diffOnSave?.();
+});
+
 // --- Import ---
 function openImportModal() {
   document.getElementById('import-textarea').value = '';
@@ -988,6 +1081,7 @@ function createFrontmatterPanel(type, meta, onChange) {
       <div class="field fm-full">
         <label>Paths <span style="font-weight:400;opacity:0.55">— glob patterns that scope this rule</span></label>
         <input class="fm-paths" value="${esc(meta.paths ?? '')}" placeholder="src/**/*.ts">
+        <div style="font-size:10px;opacity:0.45;margin-top:4px">Supports brace expansion: <code>src/**/*.{ts,tsx}</code></div>
       </div>
     `;
   } else if (type === 'skills') {
@@ -1226,6 +1320,8 @@ document.getElementById('save-sandbox').addEventListener('click', () => {
 });
 
 // --- App Config ---
+let marketplaces = [];
+
 function renderAppConfig() {
   const cfg = state.globalUserConfig ?? {};
   document.getElementById('appconfig-editor-mode').value = cfg.editorMode ?? '';
@@ -1234,17 +1330,47 @@ function renderAppConfig() {
   document.getElementById('appconfig-terminal-progress').checked = cfg.terminalProgressBarEnabled ?? false;
   document.getElementById('appconfig-auto-connect-ide').checked = cfg.autoConnectIde ?? false;
   document.getElementById('appconfig-auto-install-ext').checked = cfg.autoInstallIdeExtension ?? false;
+
+  // Plugins
+  const plugins = cfg.enabledPlugins ?? {};
+  const list = document.getElementById('plugin-list');
+  const entries = Object.entries(plugins);
+  if (!entries.length) {
+    list.innerHTML = '<div class="empty">No plugins installed.</div>';
+  } else {
+    list.innerHTML = entries.map(([name, enabled]) => `
+      <div class="field" style="display:flex;align-items:center;justify-content:space-between;padding:6px 0;border-bottom:1px solid rgba(255,255,255,0.05)">
+        <span style="font-size:12px">${esc(name)}</span>
+        <label class="toggle"><input type="checkbox" class="plugin-toggle" data-name="${esc(name)}" ${enabled ? 'checked' : ''}><span class="toggle-slider"></span></label>
+      </div>
+    `).join('');
+  }
+
+  marketplaces = [...(cfg.extraKnownMarketplaces ?? [])];
+  renderTagList('marketplace-tags', marketplaces, renderAppConfig);
 }
 
+document.getElementById('marketplace-add').addEventListener('click', () =>
+  addTagFromInput('marketplace-input', marketplaces, () => renderTagList('marketplace-tags', marketplaces, () => {})));
+
 document.getElementById('save-appconfig').addEventListener('click', () => {
+  const cfg = state.globalUserConfig ?? {};
   const editorMode = document.getElementById('appconfig-editor-mode').value;
+  // collect plugin toggle states from DOM
+  const enabledPlugins = {};
+  document.querySelectorAll('.plugin-toggle').forEach(cb => {
+    enabledPlugins[cb.dataset.name] = cb.checked;
+  });
   const config = {
+    ...cfg,
     editorMode: editorMode || undefined,
     autoScrollEnabled: document.getElementById('appconfig-auto-scroll').checked,
     showTurnDuration: document.getElementById('appconfig-show-turn-duration').checked,
     terminalProgressBarEnabled: document.getElementById('appconfig-terminal-progress').checked,
     autoConnectIde: document.getElementById('appconfig-auto-connect-ide').checked,
     autoInstallIdeExtension: document.getElementById('appconfig-auto-install-ext').checked,
+    enabledPlugins: Object.keys(enabledPlugins).length ? enabledPlugins : undefined,
+    extraKnownMarketplaces: marketplaces.length ? marketplaces : undefined,
   };
   vscode.postMessage({ type: 'saveGlobalUserConfig', config });
 });

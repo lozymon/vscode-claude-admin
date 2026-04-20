@@ -500,6 +500,21 @@
     #import-textarea { width:100%; min-height:180px; font-family:monospace; font-size:12px; background:var(--input-bg); color:var(--input-fg); border:1px solid var(--input-border); border-radius:3px; padding:8px; box-sizing:border-box; resize:vertical; }
     #import-error { color:var(--vscode-errorForeground,#f88); font-size:11px; margin-top:4px; min-height:16px; }
 
+    /* ── Diff overlay ── */
+    #diff-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.55); z-index:500; align-items:center; justify-content:center; }
+    #diff-overlay.open { display:flex; }
+    #diff-box { background:var(--sidebar-bg); border:1px solid var(--border); border-radius:8px; padding:20px; width:640px; max-width:94vw; max-height:80vh; display:flex; flex-direction:column; }
+    #diff-box h3 { margin:0 0 12px; font-size:14px; flex-shrink:0; }
+    #diff-scroll { overflow-y:auto; flex:1; min-height:0; }
+    .diff-table { width:100%; border-collapse:collapse; font-size:12px; }
+    .diff-table th { text-align:left; padding:4px 8px; font-size:11px; opacity:0.5; font-weight:600; border-bottom:1px solid var(--border); position:sticky; top:0; background:var(--sidebar-bg); }
+    .diff-table td { padding:5px 8px; vertical-align:top; border-bottom:1px solid rgba(255,255,255,0.04); font-family:monospace; word-break:break-all; }
+    .diff-table td:first-child { opacity:0.7; font-family:inherit; font-size:11px; white-space:nowrap; }
+    .diff-added { background:rgba(0,200,80,0.07); }
+    .diff-removed { background:rgba(255,70,70,0.07); }
+    .diff-changed { background:rgba(255,200,0,0.06); }
+    .diff-old { opacity:0.55; text-decoration:line-through; }
+
     /* ── List filter ── */
     .list-filter { width: 100%; margin-bottom: 10px; background: var(--input-bg); color: var(--input-fg); border: 1px solid var(--input-border); border-radius: 3px; padding: 5px 10px; font-size: 12px; font-family: inherit; outline: none; box-sizing: border-box; }
     .list-filter:focus { border-color: var(--accent); }
@@ -901,6 +916,7 @@
         </div>
         <div class="save-bar" style="border:none;padding-top:0;gap:8px">
           <button id="save-advanced">Save</button>
+          <button class="secondary" id="diff-advanced-btn">Preview Changes</button>
           <button class="secondary" id="export-advanced-btn">Export JSON</button>
           <button class="secondary" id="import-advanced-btn">Import JSON</button>
         </div>
@@ -948,6 +964,15 @@
             <div class="field" style="margin-top:10px;margin-bottom:0">
               <label>Headers Helper <span style="font-weight:400;opacity:0.55">— shell command for dynamic auth headers</span></label>
               <input id="mcp-headers-helper" placeholder="e.g. my-auth-helper --format json">
+            </div>
+          </div>
+          <div class="field" id="mcp-oauth-field" style="display:none">
+            <label>OAuth</label>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px">
+              <div class="field" style="margin:0"><label>Client ID</label><input id="mcp-oauth-client-id" placeholder="my-client-id"></div>
+              <div class="field" style="margin:0"><label>Callback Port</label><input id="mcp-oauth-callback-port" type="number" placeholder="8080"></div>
+              <div class="field" style="margin:0;grid-column:1/-1"><label>Auth Server Metadata URL</label><input id="mcp-oauth-metadata-url" placeholder="https://.../.well-known/openid-configuration"></div>
+              <div class="field" style="margin:0;grid-column:1/-1"><label>Scopes <span style="font-weight:400;opacity:0.55">(space separated)</span></label><input id="mcp-oauth-scopes" placeholder="openid profile email"></div>
             </div>
           </div>
           <div class="field">
@@ -1453,6 +1478,22 @@
             </div>
           </div>
         </div>
+        <div class="card">
+          <div class="card-header">Plugins</div>
+          <div class="card-body">
+            <div style="font-size:11px;opacity:0.55;margin-bottom:10px">Toggle installed plugins on or off.</div>
+            <div id="plugin-list"><div class="empty">No plugins installed.</div></div>
+            <div class="field" style="margin-top:14px">
+              <label>Extra Marketplaces</label>
+              <div style="font-size:11px;opacity:0.55;margin-bottom:6px">Additional plugin marketplace URLs.</div>
+              <div class="tag-list" id="marketplace-tags"></div>
+              <div class="row">
+                <input id="marketplace-input" placeholder="https://marketplace.example.com" style="flex:1">
+                <button id="marketplace-add">Add</button>
+              </div>
+            </div>
+          </div>
+        </div>
       </section>
 
     </div><!-- .content -->
@@ -1529,6 +1570,21 @@
   </aside>
 
   <div class="toast-container" id="toast-container"></div>
+
+  <!-- Diff overlay -->
+  <div id="diff-overlay">
+    <div id="diff-box">
+      <h3>Preview Changes</h3>
+      <div id="diff-scroll">
+        <div id="diff-content"></div>
+        <div id="diff-empty" class="empty" style="display:none">No changes detected.</div>
+      </div>
+      <div class="row" style="margin-top:12px;flex-shrink:0">
+        <button id="diff-save">Save</button>
+        <button class="secondary" id="diff-cancel">Cancel</button>
+      </div>
+    </div>
+  </div>
 
   <!-- Import JSON overlay -->
   <div id="import-overlay">

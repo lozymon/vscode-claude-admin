@@ -48,6 +48,13 @@ export interface Permissions {
   defaultMode?: 'default' | 'acceptEdits' | 'plan' | 'auto' | 'dontAsk' | 'bypassPermissions';
 }
 
+export interface McpOAuth {
+  clientId?: string;
+  callbackPort?: number;
+  authServerMetadataUrl?: string;
+  scopes?: string[];
+}
+
 export interface McpServer {
   type?: 'stdio' | 'sse' | 'http';
   command?: string;
@@ -56,6 +63,7 @@ export interface McpServer {
   url?: string;
   headers?: Record<string, string>;
   headersHelper?: string;
+  oauth?: McpOAuth;
 }
 
 export interface McpJson {
@@ -141,6 +149,8 @@ export interface GlobalUserConfig {
   terminalProgressBarEnabled?: boolean;
   autoConnectIde?: boolean;
   autoInstallIdeExtension?: boolean;
+  enabledPlugins?: Record<string, boolean>;
+  extraKnownMarketplaces?: string[];
 }
 
 export interface ClaudeConfig {
