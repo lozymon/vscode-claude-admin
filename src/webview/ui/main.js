@@ -1322,8 +1322,36 @@ document.getElementById('save-sandbox').addEventListener('click', () => {
 // --- App Config ---
 let marketplaces = [];
 
+function renderAccount(cfg) {
+  const body = document.getElementById('account-body');
+  const acct = cfg.oauthAccount;
+  if (!acct?.emailAddress) {
+    body.innerHTML = '<div class="empty">Not logged in.</div>';
+    return;
+  }
+  const initials = (acct.displayName ?? acct.emailAddress)
+    .split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+  const billingLabel = (acct.billingType ?? '').replace(/_/g, ' ') || 'free';
+  const since = acct.subscriptionCreatedAt
+    ? new Date(acct.subscriptionCreatedAt).toLocaleDateString(undefined, { year: 'numeric', month: 'short' })
+    : null;
+  body.innerHTML = `
+    <div class="account-info">
+      <div class="account-avatar">${esc(initials)}</div>
+      <div>
+        <div style="font-size:14px;font-weight:600">${esc(acct.displayName ?? '')}</div>
+        <div class="account-detail">${esc(acct.emailAddress)}</div>
+        ${acct.accountUuid ? `<div class="account-detail" style="font-family:monospace;font-size:10px">${esc(acct.accountUuid)}</div>` : ''}
+        <span class="account-badge">${esc(billingLabel)}</span>
+        ${since ? `<span class="account-badge" style="margin-left:4px">since ${esc(since)}</span>` : ''}
+      </div>
+    </div>
+  `;
+}
+
 function renderAppConfig() {
   const cfg = state.globalUserConfig ?? {};
+  renderAccount(cfg);
   document.getElementById('appconfig-editor-mode').value = cfg.editorMode ?? '';
   document.getElementById('appconfig-auto-scroll').checked = cfg.autoScrollEnabled ?? false;
   document.getElementById('appconfig-show-turn-duration').checked = cfg.showTurnDuration ?? false;

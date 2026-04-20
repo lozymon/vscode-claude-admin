@@ -142,6 +142,17 @@ export interface MemoryFile {
   content: string;
 }
 
+export interface OAuthAccount {
+  accountUuid?: string;
+  emailAddress?: string;
+  displayName?: string;
+  organizationUuid?: string;
+  billingType?: string;
+  accountCreatedAt?: string;
+  subscriptionCreatedAt?: string;
+  hasExtraUsageEnabled?: boolean;
+}
+
 export interface GlobalUserConfig {
   editorMode?: 'default' | 'vim';
   autoScrollEnabled?: boolean;
@@ -151,6 +162,8 @@ export interface GlobalUserConfig {
   autoInstallIdeExtension?: boolean;
   enabledPlugins?: Record<string, boolean>;
   extraKnownMarketplaces?: string[];
+  oauthAccount?: OAuthAccount;
+  userID?: string;
 }
 
 export interface ClaudeConfig {
