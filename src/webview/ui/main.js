@@ -569,6 +569,18 @@ document.getElementById('deny-add').addEventListener('click', () => addPermissio
 document.getElementById('allow-input').addEventListener('keydown', e => { if (e.key === 'Enter') addPermission('allow'); });
 document.getElementById('ask-input').addEventListener('keydown', e => { if (e.key === 'Enter') addPermission('ask'); });
 document.getElementById('deny-input').addEventListener('keydown', e => { if (e.key === 'Enter') addPermission('deny'); });
+
+// Hint chips — click inserts value into last focused permission input
+let _lastPermInput = document.getElementById('allow-input');
+['allow-input','ask-input','deny-input'].forEach(id => {
+  document.getElementById(id).addEventListener('focus', e => { _lastPermInput = e.target; });
+});
+document.getElementById('perm-hint-chips').addEventListener('click', e => {
+  const chip = e.target.closest('.hint-chip');
+  if (!chip || !_lastPermInput) return;
+  _lastPermInput.value = chip.dataset.val;
+  _lastPermInput.focus();
+});
 document.getElementById('save-permissions').addEventListener('click', () => {
   const cfg = getConfig();
   const perms = JSON.parse(JSON.stringify(cfg.settings?.permissions ?? { allow: [], deny: [] }));
@@ -821,11 +833,21 @@ function toggleInlineEditor(type, filePath, name) {
   renderFileSection(type);
 }
 
+const FM_TYPES = { commands: true, rules: true };
+
 function openInlineEditor(type, filePath, name, content) {
   const wrap = document.getElementById(`inline-editor-${type}`);
   if (!wrap) return;
   wrap.style.display = 'block';
   wrap.innerHTML = '';
+
+  // Parse frontmatter for supported types
+  let meta = {}, editorContent = content;
+  if (FM_TYPES[type]) {
+    const parsed = parseFrontmatter(content);
+    meta = parsed.meta;
+    editorContent = parsed.body;
+  }
 
   // Header bar
   const header = document.createElement('div');
@@ -837,21 +859,90 @@ function openInlineEditor(type, filePath, name, content) {
   saveBtn.addEventListener('click', () => {
     const ed = inlineEditors[type]?.ed;
     if (!ed) return;
-    vscode.postMessage({ type: 'saveFileContent', filePath, content: ed.getValue() });
+    let finalContent = ed.getValue();
+    if (FM_TYPES[type]) {
+      const fm = readFrontmatterPanel(wrap, type);
+      finalContent = serializeFrontmatter(fm, finalContent);
+    }
+    vscode.postMessage({ type: 'saveFileContent', filePath, content: finalContent });
   });
   header.appendChild(saveBtn);
   wrap.appendChild(header);
+
+  // Frontmatter panel
+  if (FM_TYPES[type]) {
+    wrap.appendChild(createFrontmatterPanel(type, meta, () => saveBtn.classList.add('dirty')));
+  }
 
   // Editor container
   const edContainer = document.createElement('div');
   edContainer.id = `cm-inline-${type}`;
   wrap.appendChild(edContainer);
 
-  const ed = CM.createMarkdownEditor(edContainer, content, {
+  const ed = CM.createMarkdownEditor(edContainer, editorContent, {
     onChange: () => saveBtn.classList.add('dirty'),
     height: '380px',
   });
   inlineEditors[type].ed = ed;
+}
+
+function createFrontmatterPanel(type, meta, onChange) {
+  const panel = document.createElement('div');
+  panel.className = 'frontmatter-panel';
+  const label = document.createElement('div');
+  label.className = 'fm-label';
+  label.textContent = 'Frontmatter';
+  panel.appendChild(label);
+  const grid = document.createElement('div');
+  grid.className = 'fm-grid';
+  panel.appendChild(grid);
+
+  if (type === 'commands') {
+    grid.innerHTML = `
+      <div class="field fm-full">
+        <label>Description</label>
+        <input class="fm-description" value="${esc(meta.description ?? '')}" placeholder="What this command does">
+      </div>
+      <div class="field" style="display:flex;align-items:center;justify-content:space-between">
+        <div>
+          <div style="font-size:12px;font-weight:500">User Invocable</div>
+          <div style="font-size:11px;opacity:0.55">Show in slash-command picker</div>
+        </div>
+        <label class="toggle"><input type="checkbox" class="fm-user-invocable" ${meta['user-invocable'] === 'true' ? 'checked' : ''}><span class="toggle-slider"></span></label>
+      </div>
+      <div class="field">
+        <label>Allowed Tools</label>
+        <input class="fm-allowed-tools" value="${esc(meta['allowed-tools'] ?? '')}" placeholder="Bash Read Write">
+      </div>
+    `;
+  } else if (type === 'rules') {
+    grid.innerHTML = `
+      <div class="field fm-full">
+        <label>Paths <span style="font-weight:400;opacity:0.55">— glob patterns that scope this rule</span></label>
+        <input class="fm-paths" value="${esc(meta.paths ?? '')}" placeholder="src/**/*.ts">
+      </div>
+    `;
+  }
+
+  grid.addEventListener('input', onChange);
+  grid.addEventListener('change', onChange);
+  return panel;
+}
+
+function readFrontmatterPanel(wrap, type) {
+  const meta = {};
+  if (type === 'commands') {
+    const desc = wrap.querySelector('.fm-description')?.value.trim();
+    const inv = wrap.querySelector('.fm-user-invocable')?.checked;
+    const tools = wrap.querySelector('.fm-allowed-tools')?.value.trim();
+    if (desc) meta.description = desc;
+    if (inv) meta['user-invocable'] = 'true';
+    if (tools) meta['allowed-tools'] = tools;
+  } else if (type === 'rules') {
+    const paths = wrap.querySelector('.fm-paths')?.value.trim();
+    if (paths) meta.paths = paths;
+  }
+  return meta;
 }
 
 // Handle fileContent message from extension
@@ -891,6 +982,9 @@ document.getElementById('agent-create-confirm').addEventListener('click', () => 
   const isolation = document.getElementById('agent-isolation').value;
   const effort = document.getElementById('agent-effort').value;
   const color = document.getElementById('agent-color').value.trim();
+  const background = document.getElementById('agent-background').checked;
+  const skills = document.getElementById('agent-skills').value.trim();
+  const mcpServers = document.getElementById('agent-mcp-servers').value.trim();
   const tools = document.getElementById('agent-tools').value.trim();
   const disallowed = document.getElementById('agent-disallowed-tools').value.trim();
   const instructions = document.getElementById('agent-instructions').value.trim();
@@ -902,6 +996,9 @@ document.getElementById('agent-create-confirm').addEventListener('click', () => 
   if (maxTurns) fields.maxTurns = Number(maxTurns);
   if (isolation) fields.isolation = isolation;
   if (color) fields.color = color;
+  if (background) fields.background = 'true';
+  if (skills) fields.skills = skills.split(/[\s,]+/).filter(Boolean).join(', ');
+  if (mcpServers) fields.mcpServers = mcpServers.split(/[\s,]+/).filter(Boolean).join(', ');
   if (tools) fields.tools = tools.split(/[\s,]+/).filter(Boolean).join(', ');
   if (disallowed) fields.disallowedTools = disallowed.split(/[\s,]+/).filter(Boolean).join(', ');
 
@@ -916,13 +1013,14 @@ document.getElementById('agent-create-confirm').addEventListener('click', () => 
 });
 
 function resetAgentForm() {
-  ['agent-name','agent-description','agent-max-turns','agent-color','agent-tools','agent-disallowed-tools','agent-instructions'].forEach(id => {
+  ['agent-name','agent-description','agent-max-turns','agent-color','agent-skills','agent-mcp-servers','agent-tools','agent-disallowed-tools','agent-instructions'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('agent-model').value = '';
   document.getElementById('agent-effort').value = '';
   document.getElementById('agent-permission-mode').value = '';
   document.getElementById('agent-isolation').value = '';
+  document.getElementById('agent-background').checked = false;
 }
 
 // --- Sandbox ---
@@ -1086,4 +1184,23 @@ document.querySelectorAll('section').forEach(sec => {
 // --- Utils ---
 function esc(str) {
   return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+// --- Frontmatter helpers ---
+function parseFrontmatter(content) {
+  const m = content.match(/^---\r?\n([\s\S]*?)\r?\n---\r?\n?([\s\S]*)$/);
+  if (!m) return { meta: {}, body: content };
+  const meta = {};
+  for (const line of m[1].split('\n')) {
+    const colon = line.indexOf(':');
+    if (colon === -1) continue;
+    meta[line.slice(0, colon).trim()] = line.slice(colon + 1).trim();
+  }
+  return { meta, body: m[2] };
+}
+
+function serializeFrontmatter(meta, body) {
+  const entries = Object.entries(meta).filter(([, v]) => v !== '' && v !== null && v !== undefined);
+  if (!entries.length) return body;
+  return `---\n${entries.map(([k, v]) => `${k}: ${v}`).join('\n')}\n---\n${body}`;
 }

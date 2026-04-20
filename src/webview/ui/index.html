@@ -489,6 +489,18 @@
     /* replace row input-wrap has no count inside */
     .vsc-row:last-child .vsc-input-wrap { flex: 1; }
 
+    /* ── Hint chips ── */
+    .hint-chips { display: flex; flex-wrap: wrap; gap: 5px; }
+    .hint-chip { background: var(--item-hover); border: 1px solid var(--border); border-radius: 3px; padding: 2px 8px; font-size: 11px; font-family: monospace; color: var(--fg); opacity: 0.7; cursor: pointer; white-space: nowrap; }
+    .hint-chip:hover { opacity: 1; background: var(--item-active); color: var(--item-active-fg); border-color: transparent; }
+
+    /* ── Frontmatter panel ── */
+    .frontmatter-panel { background: var(--sidebar-bg); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px; margin-bottom: 10px; }
+    .frontmatter-panel .fm-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.07em; opacity: 0.45; margin-bottom: 8px; }
+    .frontmatter-panel .fm-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .frontmatter-panel .fm-grid .field { margin: 0; }
+    .frontmatter-panel .fm-full { grid-column: 1 / -1; }
+
     /* ── Unsaved indicator ── */
     button.dirty::after {
       content: '';
@@ -937,6 +949,22 @@
       <!-- Permissions -->
       <section id="sec-permissions">
         <div class="card">
+          <div class="card-header">Rule Syntax</div>
+          <div class="card-body">
+            <div style="font-size:11px;opacity:0.55;margin-bottom:8px">Click an example to insert it into the active field.</div>
+            <div class="hint-chips" id="perm-hint-chips">
+              <button class="hint-chip" data-val="Bash(*)">Bash(*)</button>
+              <button class="hint-chip" data-val="Bash(npm run *)">Bash(npm run *)</button>
+              <button class="hint-chip" data-val="Read(.env)">Read(.env)</button>
+              <button class="hint-chip" data-val="Write(src/**)">Write(src/**)</button>
+              <button class="hint-chip" data-val="Edit(*.md)">Edit(*.md)</button>
+              <button class="hint-chip" data-val="WebFetch(domain:example.com)">WebFetch(domain:*)</button>
+              <button class="hint-chip" data-val="mcp__server__tool">mcp__server__tool</button>
+              <button class="hint-chip" data-val="Agent(*)">Agent(*)</button>
+            </div>
+          </div>
+        </div>
+        <div class="card">
           <div class="card-header">Default Mode</div>
           <div class="card-body">
             <div class="field">
@@ -1201,6 +1229,21 @@
               </select>
             </div>
             <div class="field"><label>Color</label><input id="agent-color" placeholder="e.g. blue, #ff6b35"></div>
+            <div class="field" style="display:flex;align-items:center;justify-content:space-between">
+              <div>
+                <div style="font-size:12px;font-weight:500">Run in Background</div>
+                <div style="font-size:11px;opacity:0.55">Start agent without waiting for completion</div>
+              </div>
+              <label class="toggle"><input type="checkbox" id="agent-background"><span class="toggle-slider"></span></label>
+            </div>
+          </div>
+          <div class="field">
+            <label>Skills (comma or space separated names)</label>
+            <input id="agent-skills" placeholder="my-skill another-skill">
+          </div>
+          <div class="field">
+            <label>MCP Servers (comma or space separated names)</label>
+            <input id="agent-mcp-servers" placeholder="my-server another-server">
           </div>
           <div class="field">
             <label>Allowed Tools (space or comma separated)</label>
