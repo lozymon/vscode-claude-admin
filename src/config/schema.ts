@@ -4,6 +4,7 @@ export interface Hook {
   url?: string;
   prompt?: string;
   agent?: string;
+  if?: string;
 }
 
 export interface HookEntry {
@@ -110,6 +111,8 @@ export interface Settings {
   worktree?: { symlinkDirectories?: string[]; sparsePaths?: string[] };
   companyAnnouncements?: string[];
   sandbox?: SandboxConfig;
+  statusLine?: string;
+  fileSuggestion?: string;
 }
 
 export interface SettingsLocal {

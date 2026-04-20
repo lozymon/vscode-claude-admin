@@ -824,6 +824,21 @@
           </div>
         </div>
         <div class="card">
+          <div class="card-header">Customization</div>
+          <div class="card-body">
+            <div class="field">
+              <label>Status Line Command</label>
+              <div style="font-size:11px;opacity:0.55;margin-bottom:6px">Shell command whose output is shown in the Claude Code status line.</div>
+              <input id="status-line" placeholder="e.g. echo 'build ok'">
+            </div>
+            <div class="field">
+              <label>File Suggestion Command</label>
+              <div style="font-size:11px;opacity:0.55;margin-bottom:6px">Shell command for custom <code>@</code> file autocomplete suggestions.</div>
+              <input id="file-suggestion" placeholder="e.g. fzf --select-1">
+            </div>
+          </div>
+        </div>
+        <div class="card">
           <div class="card-header">Worktree</div>
           <div class="card-body">
             <div class="field">
@@ -1024,10 +1039,15 @@
               <option value="agent">Agent</option>
             </select>
           </div>
-          <div class="field" id="hook-command-field"><label>Command</label><input id="hook-command" placeholder="npm run lint --silent"></div>
+          <div class="field" id="hook-command-field">
+            <label>Command</label>
+            <input id="hook-command" placeholder="npm run lint --silent">
+            <div style="font-size:10px;opacity:0.5;margin-top:5px">Exit code: <code>0</code> = allow &nbsp;·&nbsp; <code>2</code> = block the action &nbsp;·&nbsp; other = warn only</div>
+          </div>
           <div class="field" id="hook-url-field" style="display:none"><label>URL</label><input id="hook-url" placeholder="https://..."></div>
           <div class="field" id="hook-prompt-field" style="display:none"><label>Prompt</label><input id="hook-prompt" placeholder="Summarize what just happened"></div>
           <div class="field" id="hook-agent-field" style="display:none"><label>Agent</label><input id="hook-agent" placeholder="my-agent"></div>
+          <div class="field"><label>Condition (<code>if</code>) <span style="font-weight:400;opacity:0.55">— permission-syntax filter, optional</span></label><input id="hook-if" placeholder="e.g. Bash(npm *)"></div>
           <div class="row">
             <button id="hook-add-confirm">Add Hook</button>
             <button class="secondary" id="hook-add-cancel">Cancel</button>
@@ -1163,12 +1183,24 @@
             </div>
             <div class="field"><label>Max Turns</label><input id="agent-max-turns" type="number" placeholder="10"></div>
             <div class="field">
+              <label>Effort Level</label>
+              <select id="agent-effort">
+                <option value="">— inherit —</option>
+                <option value="low">Low</option>
+                <option value="medium">Medium</option>
+                <option value="high">High</option>
+                <option value="xhigh">XHigh</option>
+                <option value="max">Max</option>
+              </select>
+            </div>
+            <div class="field">
               <label>Isolation</label>
               <select id="agent-isolation">
                 <option value="">— none —</option>
                 <option value="worktree">Worktree</option>
               </select>
             </div>
+            <div class="field"><label>Color</label><input id="agent-color" placeholder="e.g. blue, #ff6b35"></div>
           </div>
           <div class="field">
             <label>Allowed Tools (space or comma separated)</label>

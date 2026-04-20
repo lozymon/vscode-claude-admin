@@ -278,6 +278,8 @@ function renderAdvanced() {
   document.getElementById('attribution-commit').value = s.attribution?.commit ?? '';
   document.getElementById('attribution-pr').value = s.attribution?.pr ?? '';
   document.getElementById('auto-memory-directory').value = s.autoMemoryDirectory ?? '';
+  document.getElementById('status-line').value = s.statusLine ?? '';
+  document.getElementById('file-suggestion').value = s.fileSuggestion ?? '';
 
   availableModels = [...(s.availableModels ?? [])];
   symlinkDirs = [...(s.worktree?.symlinkDirectories ?? [])];
@@ -349,6 +351,8 @@ document.getElementById('save-advanced').addEventListener('click', () => {
     symlinkDirs,
     sparsePaths,
     companyAnnouncements: announcements,
+    statusLine: document.getElementById('status-line').value,
+    fileSuggestion: document.getElementById('file-suggestion').value,
   });
 });
 
@@ -609,6 +613,7 @@ function renderHooks() {
         div.innerHTML = `
           <div class="hook-event">${event}</div>
           ${entry.matcher ? `<div class="hook-matcher">matcher: ${esc(entry.matcher)}</div>` : ''}
+          ${h.if ? `<div class="hook-matcher">if: ${esc(h.if)}</div>` : ''}
           <div style="font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.05em;opacity:0.5;margin-bottom:2px">${typeLabel}</div>
           <div class="hook-command">${esc(hookValue(h))}</div>
           <div class="hook-actions">
@@ -677,6 +682,8 @@ document.getElementById('hook-add-confirm').addEventListener('click', () => {
     if (!agent) return;
     hookObj.agent = agent;
   }
+  const hookIf = document.getElementById('hook-if').value.trim();
+  if (hookIf) hookObj.if = hookIf;
 
   const cfg = getConfig();
   const hooks = JSON.parse(JSON.stringify(cfg.settings?.hooks ?? {}));
@@ -691,6 +698,7 @@ document.getElementById('hook-add-confirm').addEventListener('click', () => {
   document.getElementById('hook-url').value = '';
   document.getElementById('hook-prompt').value = '';
   document.getElementById('hook-agent').value = '';
+  document.getElementById('hook-if').value = '';
   document.getElementById('hook-type').value = 'command';
   document.getElementById('hook-command-field').style.display = '';
   document.getElementById('hook-url-field').style.display = 'none';
@@ -881,15 +889,19 @@ document.getElementById('agent-create-confirm').addEventListener('click', () => 
   const permMode = document.getElementById('agent-permission-mode').value;
   const maxTurns = document.getElementById('agent-max-turns').value.trim();
   const isolation = document.getElementById('agent-isolation').value;
+  const effort = document.getElementById('agent-effort').value;
+  const color = document.getElementById('agent-color').value.trim();
   const tools = document.getElementById('agent-tools').value.trim();
   const disallowed = document.getElementById('agent-disallowed-tools').value.trim();
   const instructions = document.getElementById('agent-instructions').value.trim();
 
   if (desc) fields.description = desc;
   if (model) fields.model = model;
+  if (effort) fields.effort = effort;
   if (permMode) fields.permissionMode = permMode;
   if (maxTurns) fields.maxTurns = Number(maxTurns);
   if (isolation) fields.isolation = isolation;
+  if (color) fields.color = color;
   if (tools) fields.tools = tools.split(/[\s,]+/).filter(Boolean).join(', ');
   if (disallowed) fields.disallowedTools = disallowed.split(/[\s,]+/).filter(Boolean).join(', ');
 
@@ -904,10 +916,11 @@ document.getElementById('agent-create-confirm').addEventListener('click', () => 
 });
 
 function resetAgentForm() {
-  ['agent-name','agent-description','agent-max-turns','agent-tools','agent-disallowed-tools','agent-instructions'].forEach(id => {
+  ['agent-name','agent-description','agent-max-turns','agent-color','agent-tools','agent-disallowed-tools','agent-instructions'].forEach(id => {
     document.getElementById(id).value = '';
   });
   document.getElementById('agent-model').value = '';
+  document.getElementById('agent-effort').value = '';
   document.getElementById('agent-permission-mode').value = '';
   document.getElementById('agent-isolation').value = '';
 }

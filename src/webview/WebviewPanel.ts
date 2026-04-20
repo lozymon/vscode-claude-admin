@@ -102,6 +102,8 @@ export class WebviewPanel {
             ? { symlinkDirectories: msg.symlinkDirs, sparsePaths: msg.sparsePaths }
             : undefined,
           companyAnnouncements: msg.companyAnnouncements?.length ? msg.companyAnnouncements : undefined,
+          statusLine: msg.statusLine || undefined,
+          fileSuggestion: msg.fileSuggestion || undefined,
         });
         break;
       case 'saveEnv':
