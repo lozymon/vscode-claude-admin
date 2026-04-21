@@ -1,0 +1,17 @@
+.vscode/**
+.claude/**
+.git/**
+.gitignore
+node_modules/**
+
+src/**/*.ts
+src/webview/ui/cm-entry.js
+src/webview/ui/*.map
+
+dist/**/*.map
+
+esbuild.js
+tsconfig.json
+CLAUDE.md
+
+*.vsix
