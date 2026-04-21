@@ -114,6 +114,13 @@ function render() {
 }
 
 // --- Dashboard ---
+const DEFAULT_MODEL_ID = 'claude-sonnet-4-6';
+const MODEL_LABELS = {
+  'claude-opus-4-7': 'Opus 4.7',
+  'claude-sonnet-4-6': 'Sonnet 4.6',
+  'claude-haiku-4-5': 'Haiku 4.5',
+};
+
 function renderDashboard() {
   const grid = document.getElementById('dash-grid');
   if (!grid) return;
@@ -121,24 +128,70 @@ function renderDashboard() {
   const glob = state.global;
   const cfg = getConfig();
   if (!cfg) return;
+  const settings = cfg.settings ?? {};
 
-  const mcpCount = Object.keys(proj?.mcpServers ?? {}).length;
-  const allowCount = cfg.settings?.permissions?.allow?.length ?? 0;
-  const denyCount = cfg.settings?.permissions?.deny?.length ?? 0;
-  const askCount = cfg.settings?.permissions?.ask?.length ?? 0;
-  const hookCount = Object.values(cfg.settings?.hooks ?? {}).reduce((n, arr) => n + arr.length, 0);
-  const envCount = Object.keys(cfg.settings?.env ?? {}).length;
+  const mcpServers = proj?.mcpServers ?? {};
+  const mcpDisabled = new Set(proj?.settingsLocal?.disabledMcpjsonServers ?? []);
+  const mcpTotal = Object.keys(mcpServers).length;
+  const mcpEnabled = Object.keys(mcpServers).filter(n => !mcpDisabled.has(n)).length;
+  const mcpOff = mcpTotal - mcpEnabled;
+
+  const allowCount = settings.permissions?.allow?.length ?? 0;
+  const askCount = settings.permissions?.ask?.length ?? 0;
+  const denyCount = settings.permissions?.deny?.length ?? 0;
+
+  const hookBuckets = settings.hooks ?? {};
+  const hookEvents = Object.keys(hookBuckets).length;
+  const hookCount = Object.values(hookBuckets).reduce((n, arr) => n + arr.length, 0);
+
+  const envCount = Object.keys(settings.env ?? {}).length;
   const memCount = (glob?.memory ?? []).length;
+  const plansCount = (glob?.plans ?? []).length;
+
+  const rawModel = settings.model;
+  const effectiveModel = rawModel || DEFAULT_MODEL_ID;
+  const modelLabel = MODEL_LABELS[effectiveModel] ?? effectiveModel;
+  const modelSubtitle = rawModel ? null : 'default — not explicitly set';
 
   const cards = [
-    { label: 'Model', value: cfg.settings?.model ?? 'not set', icon: '⚙', section: 'model' },
-    { label: 'MCP Servers', value: mcpCount, icon: '⚡', section: 'mcp' },
-    { label: 'Allow Rules', value: allowCount, icon: '✅', section: 'permissions' },
-    { label: 'Ask Rules', value: askCount, icon: '❓', section: 'permissions' },
-    { label: 'Deny Rules', value: denyCount, icon: '🚫', section: 'permissions' },
-    { label: 'Hooks', value: hookCount, icon: '🪝', section: 'hooks' },
+    {
+      label: 'Model',
+      value: modelLabel,
+      subtitle: modelSubtitle,
+      icon: '⚙',
+      section: 'model',
+      hero: true,
+    },
+    {
+      label: 'Permissions',
+      icon: '🔒',
+      section: 'permissions',
+      wide: true,
+      customValue: `
+        <div class="perm-bars">
+          <div class="perm-bar perm-allow"><span class="perm-n">${allowCount}</span><span class="perm-l">allow</span></div>
+          <div class="perm-bar perm-ask"><span class="perm-n">${askCount}</span><span class="perm-l">ask</span></div>
+          <div class="perm-bar perm-deny"><span class="perm-n">${denyCount}</span><span class="perm-l">deny</span></div>
+        </div>
+      `,
+    },
+    {
+      label: 'MCP Servers',
+      value: mcpTotal,
+      subtitle: mcpTotal ? `${mcpEnabled} enabled, ${mcpOff} disabled` : null,
+      icon: '⚡',
+      section: 'mcp',
+    },
+    {
+      label: 'Hooks',
+      value: hookCount,
+      subtitle: hookEvents ? `across ${hookEvents} event${hookEvents === 1 ? '' : 's'}` : null,
+      icon: '🪝',
+      section: 'hooks',
+    },
     { label: 'Env Vars', value: envCount, icon: '🌿', section: 'env' },
     { label: 'Memory Files', value: memCount, icon: '🧠', section: 'memory' },
+    { label: 'Plans', value: plansCount, icon: '📋', section: 'plans' },
   ];
 
   if (currentScope === 'project') {
@@ -151,27 +204,57 @@ function renderDashboard() {
     );
   }
 
-  let banner = document.getElementById('dash-not-init');
+  // Not-initialized banner (most severe, shown exclusively)
+  let initBanner = document.getElementById('dash-not-init');
   if (!state.isProjectInitialized) {
-    if (!banner) {
-      banner = document.createElement('div');
-      banner.id = 'dash-not-init';
-      banner.className = 'not-init-bar';
-      banner.innerHTML = `<span>⚠️ This project has no Claude Code configuration.</span><button id="dash-init-btn">Initialize</button>`;
-      banner.querySelector('#dash-init-btn').addEventListener('click', () => activateSection('init'));
-      grid.parentElement.insertBefore(banner, grid);
+    if (!initBanner) {
+      initBanner = document.createElement('div');
+      initBanner.id = 'dash-not-init';
+      initBanner.className = 'not-init-bar';
+      initBanner.innerHTML = `<span>⚠️ This project has no Claude Code configuration.</span><button id="dash-init-btn">Initialize</button>`;
+      initBanner.querySelector('#dash-init-btn').addEventListener('click', () => activateSection('init'));
+      grid.parentElement.insertBefore(initBanner, grid);
     }
   } else {
-    banner?.remove();
+    initBanner?.remove();
   }
 
-  grid.innerHTML = cards.map(c => `
-    <div class="dash-card" data-section="${c.section}" style="cursor:pointer">
-      <div class="dash-icon">${c.icon}</div>
-      <div class="dash-value">${c.value}</div>
-      <div class="dash-label">${c.label}</div>
-    </div>
-  `).join('');
+  // Config-level warnings (only shown when project is initialized)
+  const warnings = [];
+  if (state.isProjectInitialized && !rawModel) {
+    warnings.push(`Model not set — will use default ${MODEL_LABELS[DEFAULT_MODEL_ID]}`);
+  }
+  if (state.isProjectInitialized && denyCount === 0 && allowCount === 0 && askCount === 0) {
+    warnings.push('No permission rules configured');
+  }
+  let warnBar = document.getElementById('dash-warnings');
+  if (warnings.length > 0) {
+    if (!warnBar) {
+      warnBar = document.createElement('div');
+      warnBar.id = 'dash-warnings';
+      warnBar.className = 'dash-warn-bar';
+      grid.parentElement.insertBefore(warnBar, grid);
+    }
+    warnBar.innerHTML = warnings.map(w => `<div class="dash-warn-item"><span>⚠️</span><span>${esc(w)}</span></div>`).join('');
+  } else {
+    warnBar?.remove();
+  }
+
+  grid.innerHTML = cards.map(c => {
+    const classes = ['dash-card'];
+    if (c.hero) classes.push('dash-hero');
+    if (c.wide) classes.push('dash-wide');
+    const valueHtml = c.customValue ?? `<div class="dash-value">${esc(String(c.value))}</div>`;
+    const subtitleHtml = c.subtitle ? `<div class="dash-subtitle">${esc(c.subtitle)}</div>` : '';
+    return `
+      <div class="${classes.join(' ')}" data-section="${c.section}" style="cursor:pointer">
+        <div class="dash-icon">${c.icon}</div>
+        ${valueHtml}
+        <div class="dash-label">${esc(c.label)}</div>
+        ${subtitleHtml}
+      </div>
+    `;
+  }).join('');
 
   grid.querySelectorAll('.dash-card').forEach(card => {
     card.addEventListener('click', () => activateSection(card.dataset.section));

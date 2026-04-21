@@ -581,20 +581,89 @@
         border-color: var(--accent);
         background: var(--item-hover);
       }
+      .dash-card.dash-hero {
+        grid-column: span 2;
+        padding: 20px;
+      }
+      .dash-card.dash-wide {
+        grid-column: span 2;
+      }
       .dash-icon {
         font-size: 20px;
         margin-bottom: 8px;
+      }
+      .dash-hero .dash-icon {
+        font-size: 24px;
       }
       .dash-value {
         font-size: 22px;
         font-weight: 700;
         margin-bottom: 4px;
       }
+      .dash-hero .dash-value {
+        font-size: 28px;
+      }
       .dash-label {
         font-size: 11px;
         opacity: 0.55;
         text-transform: uppercase;
         letter-spacing: 0.05em;
+      }
+      .dash-subtitle {
+        margin-top: 6px;
+        font-size: 11px;
+        opacity: 0.6;
+      }
+      .perm-bars {
+        display: flex;
+        gap: 14px;
+        margin-bottom: 4px;
+      }
+      .perm-bar {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+      }
+      .perm-n {
+        font-size: 22px;
+        font-weight: 700;
+        line-height: 1.1;
+      }
+      .perm-l {
+        font-size: 10px;
+        opacity: 0.6;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-top: 2px;
+      }
+      .perm-allow .perm-n {
+        color: var(--vscode-testing-iconPassed, #4ec9b0);
+      }
+      .perm-ask .perm-n {
+        color: var(--vscode-editorWarning-foreground, #e5c07b);
+      }
+      .perm-deny .perm-n {
+        color: var(--vscode-errorForeground, #f48771);
+      }
+      .dash-warn-bar {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        background: var(
+          --vscode-inputValidation-warningBackground,
+          rgba(255, 200, 0, 0.08)
+        );
+        border: 1px solid
+          var(--vscode-inputValidation-warningBorder, rgba(255, 200, 0, 0.35));
+        border-radius: 4px;
+        padding: 10px 14px;
+        margin-bottom: 16px;
+        font-size: 12px;
+      }
+      .dash-warn-bar .dash-warn-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
       }
 
       /* ── Markdown editor chrome ── */
@@ -2709,7 +2778,7 @@
     <!-- Sidebar (right) -->
     <aside class="sidebar">
       <div class="sidebar-header">
-        <h1>Claude Code</h1>
+        <h1>CC Admin</h1>
         <div class="scope-switch">
           <button class="scope-tab active" data-scope="project">Project</button>
           <button class="scope-tab" data-scope="global">Global</button>
