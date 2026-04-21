@@ -4,7 +4,7 @@
 
 > This project is not affiliated with or endorsed by Anthropic. Claude is a trademark of Anthropic.
 
-![Dashboard](media/screenshot-dashboard.png)
+![Dashboard](https://raw.githubusercontent.com/lozymon/vscode-cc-admin/main/media/screenshot-dashboard.png)
 
 ## Requirements
 
@@ -43,6 +43,8 @@ Setup wizard for projects without Claude Code configured. Choose a model, edit t
 - Add, remove, and enable/disable MCP servers
 - Support for `stdio`, `sse`, and `http` server types
 - Per-server environment variables and headers
+
+![MCP Servers](https://raw.githubusercontent.com/lozymon/vscode-cc-admin/main/media/screenshot-mcp.png)
 
 ### Permissions
 
@@ -119,28 +121,28 @@ Read-only listing of active plans from `~/.claude/plans/` created during Claude 
 
 ## Config Files Managed
 
-| File                                     | Scope                                             |
-| ---------------------------------------- | ------------------------------------------------- |
-| `.claude/settings.json`                  | Project — model, env, prompts, permissions, hooks |
-| `.claude/settings.local.json`            | Project local — MCP toggles                       |
-| `.claude/.mcp.json`                      | Project — MCP server definitions                  |
-| `CLAUDE.md`                              | Project — main instructions                       |
-| `.claudeignore`                          | Project — paths to exclude from context           |
-| `.claude/rules/*.md`                     | Project — coding standards                        |
-| `.claude/commands/*.md`                  | Project — slash commands                          |
-| `.claude/skills/*.md`                    | Project — reusable tasks                          |
-| `.claude/workflows/*.md`                 | Project — multi-step workflows                    |
-| `.claude/agents/*.md`                    | Project — sub-agents                              |
-| `~/.claude/settings.json`                | Global — model, env, permissions, hooks           |
-| `~/.claude/commands/*.md`                | Global — slash commands                           |
-| `~/.claude/rules/*.md`                   | Global — coding standards                         |
-| `~/.claude/skills/*.md`                  | Global — skills                                   |
-| `~/.claude/workflows/*.md`               | Global — workflows                                |
-| `~/.claude/agents/*.md`                  | Global — sub-agents                               |
-| `~/.claude/MEMORY.md`                    | Global — memory index                             |
-| `~/.claude/memory/*.md`                  | Global — individual memory files                  |
-| `~/.claude/projects/<slug>/memory/*.md`  | Project-scoped memory under the global tree       |
-| `~/.claude/plans/*.md`                   | Active plans (read-only)                          |
+| File                                    | Scope                                             |
+| --------------------------------------- | ------------------------------------------------- |
+| `.claude/settings.json`                 | Project — model, env, prompts, permissions, hooks |
+| `.claude/settings.local.json`           | Project local — MCP toggles                       |
+| `.claude/.mcp.json`                     | Project — MCP server definitions                  |
+| `CLAUDE.md`                             | Project — main instructions                       |
+| `.claudeignore`                         | Project — paths to exclude from context           |
+| `.claude/rules/*.md`                    | Project — coding standards                        |
+| `.claude/commands/*.md`                 | Project — slash commands                          |
+| `.claude/skills/*.md`                   | Project — reusable tasks                          |
+| `.claude/workflows/*.md`                | Project — multi-step workflows                    |
+| `.claude/agents/*.md`                   | Project — sub-agents                              |
+| `~/.claude/settings.json`               | Global — model, env, permissions, hooks           |
+| `~/.claude/commands/*.md`               | Global — slash commands                           |
+| `~/.claude/rules/*.md`                  | Global — coding standards                         |
+| `~/.claude/skills/*.md`                 | Global — skills                                   |
+| `~/.claude/workflows/*.md`              | Global — workflows                                |
+| `~/.claude/agents/*.md`                 | Global — sub-agents                               |
+| `~/.claude/MEMORY.md`                   | Global — memory index                             |
+| `~/.claude/memory/*.md`                 | Global — individual memory files                  |
+| `~/.claude/projects/<slug>/memory/*.md` | Project-scoped memory under the global tree       |
+| `~/.claude/plans/*.md`                  | Active plans (read-only)                          |
 
 ## Release Notes
 
