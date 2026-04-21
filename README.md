@@ -44,8 +44,6 @@ Setup wizard for projects without Claude Code configured. Choose a model, edit t
 - Support for `stdio`, `sse`, and `http` server types
 - Per-server environment variables and headers
 
-![MCP Servers](media/screenshot-mcp.png)
-
 ### Permissions
 
 - **Default Mode** — `default`, `acceptEdits`, `plan`, `auto`, `dontAsk`, `bypassPermissions`
